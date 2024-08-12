@@ -339,8 +339,13 @@
               Security ID: {{ defaultCallSecurityId }}
             </div> -->
             <div class="mt-2">
-              {{ selectedCallStrike.tradingSymbol }}
+              {{ selectedCallStrike.tradingSymbol || 'CAll Strike Symbol : N/A' }} <br>
+              Change <b>{{ latestCallChange || 'N/A' }} %</b> <br>
+              OI <b>{{ latestCallOi || 'N/A' }}</b> <br>
+              Volume <b> {{ latestCallVol || 'N/A' }} </b>
             </div>
+
+
           </div>
 
           <!-- Live Underlying Price -->
@@ -376,7 +381,10 @@
               Security ID: {{ defaultPutSecurityId }}
             </div> -->
             <div class="mt-2">
-              {{ selectedPutStrike.tradingSymbol }}
+              {{ selectedPutStrike.tradingSymbol || 'Put Strike Symbol : N/A' }} <br>
+              Change <b>{{ latestPutChange || 'N/A' }} %</b> <br>
+              OI <b>{{ latestPutOi || 'N/A' }}</b> <br>
+              Volume <b> {{ latestPutVol || 'N/A' }} </b>
             </div>
           </div>
         </div>
@@ -1442,7 +1450,6 @@ const fetchTradingData = async () => {
     response = await fetch(`http://localhost:3000/dhanSymbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
   } else if (selectedBroker.value?.brokerName === 'Flattrade') {
     response = await fetch(`http://localhost:3000/flattradeSymbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
-    // response = await fetch(`http://localhost:3000/shoonyaSymbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
     // console.log('Flattrade Symbols:', response);
   } else if (selectedBroker.value?.brokerName === 'Shoonya') {
     response = await fetch(`http://localhost:3000/shoonyaSymbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
@@ -2699,7 +2706,7 @@ const placeOrderForPosition = async (transactionType, optionType, position) => {
       });
     }
 
-    // console.log(`Order placed successfully for ${getSymbol(position)}`, response.data);
+    console.log(`Order placed successfully for ${getSymbol(position)}`, response.data);
     showToastMessage(`Order placed successfully for ${getSymbol(position)}`);
 
     // Remove stoploss and target for this position
@@ -2784,7 +2791,7 @@ const modifyOpenOrder = async (orderId) => {
       throw new Error("Unsupported broker");
     }
 
-    // console.log(`Sending request to modify ${selectedBroker.value?.brokerName} order ${orderId}:`, options);
+    console.log(`Sending request to modify ${selectedBroker.value?.brokerName} order ${orderId}:`, options);
     const response = await axios(options);
     console.log(`${selectedBroker.value?.brokerName} modify order response:`, response.data);
 
@@ -2941,7 +2948,7 @@ const cancelOrder = async (order) => {
   const orderId = selectedBroker.value?.brokerName === 'Dhan' ? order.orderId : order.norenordno;
   const orderStatus = selectedBroker.value?.brokerName === 'Dhan' ? order.orderStatus : order.status;
 
-  // console.log(`Attempting to cancel order ${orderId} with status ${orderStatus}`);
+   console.log(`Attempting to cancel order ${orderId} with status ${orderStatus}`);
   // console.log(`Broker: ${selectedBroker.value?.brokerName}`);
 
   if ((selectedBroker.value?.brokerName === 'Dhan' && orderStatus !== 'PENDING') ||
@@ -2953,7 +2960,7 @@ const cancelOrder = async (order) => {
   try {
     if (selectedBroker.value?.brokerName === 'Dhan') {
       const dhanDetails = JSON.parse(localStorage.getItem('broker_Dhan') || '{}');
-      // console.log(`Sending request to cancel Dhan order ${orderId}`);
+      console.log(`Sending request to cancel Dhan order ${orderId}`);
       await axios.delete('http://localhost:3000/dhanCancelOrder', {
         data: { orderId },
         params: {
@@ -2964,7 +2971,7 @@ const cancelOrder = async (order) => {
     else if (selectedBroker.value?.brokerName === 'Flattrade') {
       const jKey = localStorage.getItem('FLATTRADE_API_TOKEN') || token.value;
       const clientId = selectedBroker.value.clientId;
-      // console.log(`Sending request to cancel Flattrade order ${orderId}`);
+      console.log(`Sending request to cancel Flattrade order ${orderId}`);
       await axios.post('http://localhost:3000/flattradeCancelOrder', {
         norenordno: orderId,
         uid: clientId
@@ -2987,7 +2994,7 @@ const cancelOrder = async (order) => {
         }
       });
     }
-    // console.log(`Order ${orderId} canceled successfully.`);
+    console.log(`Order ${orderId} canceled successfully.`);
     // Update fund limits
     await updateFundLimits();
   } catch (error) {
@@ -2998,7 +3005,7 @@ const cancelOrder = async (order) => {
 };
 
 const cancelPendingOrders = async () => {
-  // console.log(`Canceling pending orders for broker: ${selectedBroker.value?.brokerName}`);
+  console.log(`Canceling pending orders for broker: ${selectedBroker.value?.brokerName}`);
 
   // Fetch orders based on the selected broker
   if (selectedBroker.value?.brokerName === 'Dhan') {
@@ -3021,7 +3028,7 @@ const cancelPendingOrders = async () => {
     return;
   }
 
-  // console.log(`Pending orders:`, pendingOrders);
+  console.log(`Pending orders:`, pendingOrders);
 
   const cancelPromises = pendingOrders.map(order => cancelOrder(order));
 
@@ -3055,11 +3062,11 @@ const getSymbol = (position) => {
 
 // Cancel Open Order from Trades Tab...  
 const cancelOpenOrder = async (orderId) => {
-  // console.log(`Canceling open order with ID: ${orderId}`);
+  console.log(`Canceling open order with ID: ${orderId}`);
   try {
     if (selectedBroker.value?.brokerName === 'Dhan') {
       const dhanDetails = JSON.parse(localStorage.getItem('broker_Dhan') || '{}');
-      // console.log(`Sending request to cancel Dhan order ${orderId}`);
+      console.log(`Sending request to cancel Dhan order ${orderId}`);
       await axios.delete('http://localhost:3000/dhanCancelOrder', {
         data: { orderId },
         params: {
@@ -3071,7 +3078,7 @@ const cancelOpenOrder = async (orderId) => {
     else if (selectedBroker.value?.brokerName === 'Flattrade') {
       const jKey = localStorage.getItem('FLATTRADE_API_TOKEN') || token.value;
       const clientId = selectedBroker.value.clientId;
-      // console.log(`Sending request to cancel Flattrade order ${orderId}`);
+      console.log(`Sending request to cancel Flattrade order ${orderId}`);
       await axios.post('http://localhost:3000/flattradeCancelOrder', {
         norenordno: orderId,
         uid: clientId
@@ -3085,7 +3092,7 @@ const cancelOpenOrder = async (orderId) => {
     else if (selectedBroker.value?.brokerName === 'Shoonya') {
       const jKey = localStorage.getItem('SHOONYA_API_TOKEN') || token.value;
       const clientId = selectedBroker.value.clientId;
-      // console.log(`Sending request to cancel Shoonya order ${orderId}`);
+      console.log(`Sending request to cancel Shoonya order ${orderId}`);
       await axios.post('http://localhost:3000/shoonyaCancelOrder', {
         norenordno: orderId,
         uid: clientId
@@ -3096,7 +3103,7 @@ const cancelOpenOrder = async (orderId) => {
       });
       await fetchShoonyaOrdersTradesBook();
     }
-    // console.log(`Order ${orderId} canceled successfully.`);
+    console.log(`Order ${orderId} canceled successfully.`);
     await updateFundLimits();
   } catch (error) {
     console.error(`Failed to cancel order ${orderId}:`, error);
@@ -3582,7 +3589,13 @@ watch(selectedOrderType, (newOrderType) => {
 
 const socket = ref(null);
 const latestCallLTP = ref('N/A');
+const latestCallChange = ref('N/A');
+const latestCallOi = ref('N/A');
+const latestCallVol = ref('N/A');
 const latestPutLTP = ref('N/A');
+const latestPutChange = ref('N/A');
+const latestPutOi = ref('N/A');
+const latestPutVol = ref('N/A');
 
 const defaultCallSecurityId = ref(null);
 const defaultPutSecurityId = ref(null);
@@ -3598,7 +3611,7 @@ const connectWebSocket = () => {
     websocketUrl = 'ws://localhost:8767';
   }
 
-  console.log(`Connecting to WebSocket at ${websocketUrl}`);
+  // console.log(`Connecting to WebSocket at ${websocketUrl}`);
   socket.value = new WebSocket(websocketUrl);
 
   // Modify the existing socket.onmessage handler
@@ -3628,10 +3641,16 @@ const connectWebSocket = () => {
 
       if (quoteData.tk === defaultCallSecurityId.value) {
         latestCallLTP.value = quoteData.lp;
-        // console.log('Updated Call LTP:', latestCallLTP.value);
+        latestCallChange.value = quoteData.pc;
+        latestCallOi.value = quoteData.oi;
+        latestCallVol.value = quoteData.v;
+        // console.log('Updated Call Data--', 'ltp:', latestCallLTP.value , 'Change:', latestCallChange.value, 'OI:', latestCallOi.value , 'Vol:', latestCallVol.value;
       } else if (quoteData.tk === defaultPutSecurityId.value) {
         latestPutLTP.value = quoteData.lp;
-        // console.log('Updated Put LTP:', latestPutLTP.value);
+        latestPutChange.value = quoteData.pc;
+        latestPutOi.value = quoteData.oi;
+        latestPutVol.value = quoteData.v;
+        // console.log('Updated Call Data--', 'ltp:', latestPutLTP.value , 'Change:', latestPutChange.value, 'OI:', latestPutOi.value , 'Vol:', latestPutVol.value;
       }
 
       // Update position LTPs
@@ -3647,12 +3666,12 @@ const connectWebSocket = () => {
   };
 
   socket.value.onopen = () => {
-    console.log('WebSocket connected');
+  //  console.log('WebSocket connected');
     initializeSubscriptions();
   };
 
   socket.value.onclose = () => {
-    console.log('WebSocket disconnected. Attempting to reconnect...');
+  //  console.log('WebSocket disconnected. Attempting to reconnect...');
     setTimeout(connectWebSocket, 30000);
   };
 };
@@ -3741,7 +3760,7 @@ const subscribeToPositionLTPs = () => {
         ].find(p => (p.tsym || p.tradingSymbol) === tsym);
 
         if (!position) {
-          console.warn(`No position found for tsym: ${tsym}`);
+          // console.warn(`No position found for tsym: ${tsym}`);
           return null;
         }
 
@@ -3971,9 +3990,16 @@ watch(
       // Reset LTP values when subscribing to new symbols
       if (newCallId !== oldCallId) {
         latestCallLTP.value = 'N/A';
+        latestCallChange.value = 'N/A';
+        latestCallOi.value = 'N/A';
+        latestCallVol.value = 'N/A';
       }
       if (newPutId !== oldPutId) {
         latestPutLTP.value = 'N/A';
+        latestPutLTP.value = 'N/A';
+        latestPutChange.value = 'N/A';
+        latestPutOi.value = 'N/A';
+        latestPutVol.value = 'N/A';
       }
 
       if (selectedBroker.value?.brokerName === 'Flattrade') {

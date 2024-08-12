@@ -16,8 +16,10 @@
     "bootstrap": "^5.3.3",
     "chart.js": "^4.4.3",
     "crypto-js": "^4.2.0",
+    "glob": "^11.0.0",
     "pinia": "^2.1.7",
     "qs": "^6.12.1",
+    "rimraf": "^6.0.1",
     "socket.io-client": "^4.0.0",
     "vue": "^3.4.21",
     "vue-router": "^4.3.0",
@@ -29,12 +31,12 @@
     "@vitejs/plugin-vue": "^5.0.4",
     "@vue/eslint-config-prettier": "^9.0.0",
     "@vue/test-utils": "^2.4.5",
-    "eslint": "^8.57.0",
+    "eslint": "^9.9.0",
     "eslint-plugin-vue": "^9.23.0",
     "jsdom": "^24.0.0",
     "prettier": "^3.2.5",
     "vite": "^5.2.8",
-    "vitest": "^1.4.0"
+    "vitest": "^2.0.5"
   },
   "engines": {
     "node": ">=14.0.0",
