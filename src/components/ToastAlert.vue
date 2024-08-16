@@ -26,8 +26,8 @@ export default {
         show(newVal) {
             if (newVal) {
                 // Play notification sound
-                const audio = new Audio('/cyberpunk-notification.mp3');
-                audio.play();
+                // const audio = new Audio('/cyberpunk-notification.mp3');
+                // audio.play();
 
                 setTimeout(() => {
                     this.hide();

@@ -1,5 +1,5 @@
 <template>
-    <div class="container-fluid">
+    <div class="container">
         <!-- Hero Section -->
         <section class="row py-5 border">
             <div class="col-lg-8 mx-auto text-center">
@@ -13,6 +13,12 @@
                 <button @click="openTradeView" class="btn btn-dark btn-lg">
                     ⚡ Launch App
                 </button>
+                <br />
+                <br />
+                <button @click="openManageBroker" class="btn btn-dark btn-lg">
+                    <small style="font-size: 0.8em;">📝 Manage Broker</small>
+                </button>
+                <br />
                 <br />
                 <br />
                 <a href="https://t.me/steadfastapp" target="_blank" class="text-decoration-none">
@@ -122,21 +128,29 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 
+const tradeViewWindow = ref(null);
+const manageBrokerWindow = ref(null);
 
-const tradeViewWindow = ref(null)
 const openTradeView = () => {
-    const url = `${window.location.origin}/steadfast`
-    const windowFeatures = 'width=1024,height=936,resizable=yes,scrollbars=yes,status=1'
-    tradeViewWindow.value = window.open(url, 'TradeView', windowFeatures)
-}
+    const url = `${window.location.origin}/steadfast`;
+    const windowFeatures = 'width=1024,height=936,resizable=yes,scrollbars=yes,status=1';
+    tradeViewWindow.value = window.open(url, 'TradeView', windowFeatures);
+};
+
+const openManageBroker = () => {
+    const url = `${window.location.origin}/manage-brokers`;
+    const windowFeatures = 'width=1024,height=936,resizable=yes,scrollbars=yes,status=1';
+    manageBrokerWindow.value = window.open(url, 'ManageBrokers', windowFeatures);
+};
+
 onMounted(() => {
-
-
     window.addEventListener('beforeunload', () => {
         if (tradeViewWindow.value) {
             tradeViewWindow.value.close();
         }
+        if (manageBrokerWindow.value) {
+            manageBrokerWindow.value.close();
+        }
     });
 });
-
 </script>
