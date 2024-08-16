@@ -318,12 +318,10 @@
             <p class="mb-0" v-if="selectedMasterSymbol === 'NIFTY'">Nifty 50: <b>{{ niftyPrice }}</b></p>
             <p class="mb-0" v-if="selectedMasterSymbol === 'BANKNIFTY'">Bank Nifty: <b>{{ bankNiftyPrice }}</b></p>
             <p class="mb-0" v-if="selectedMasterSymbol === 'FINNIFTY'">Fin Nifty: <b>{{ finniftyPrice }}</b></p>
-            <p class="mb-0" v-if="selectedMasterSymbol === 'NIFTYNXT50'">Nifty Next 50: <b>{{ niftynxt50Price }}</b></p>
             <p class="mb-0" v-if="selectedMasterSymbol === 'MIDCPNIFTY'">Nifty Mid Select: <b>{{ midcpniftyPrice }}</b>
             </p>
             <p class="mb-0" v-if="selectedMasterSymbol === 'SENSEX'">Sensex: <b>{{ sensexPrice }}</b></p>
             <p class="mb-0" v-if="selectedMasterSymbol === 'BANKEX'">Bankex: <b>{{ bankexPrice }}</b></p>
-            <p class="mb-0" v-if="selectedMasterSymbol === 'SENSEX50'">Sensex 50: <b>{{ sensex50Price }}</b></p>
           </div>
 
           <!-- Put Strike Selection -->
@@ -1068,7 +1066,7 @@ const setActiveTab = (tab) => {
 
 // Kill Switch - Client Side
 const killSwitchActive = ref(localStorage.getItem('KillSwitchStatus') === 'true');
-const activationTime = ref(parseInt(localStorage.getItem('KillSwitchActivationTime') || '0'));
+const activationTime = ref(parseFloat(localStorage.getItem('KillSwitchActivationTime') || '0'));
 const currentTime = ref(Date.now());
 
 // Initialize kill switch state
@@ -1078,7 +1076,7 @@ const initKillSwitch = () => {
 
   if (storedStatus === 'true' && storedActivationTime) {
     killSwitchActive.value = true;
-    activationTime.value = parseInt(storedActivationTime);
+    activationTime.value = parseFloat(storedActivationTime);
   } else {
     // Deactivate kill switch if KillSwitchActivationTime is missing
     killSwitchActive.value = false;
@@ -1201,49 +1199,23 @@ const exchangeSymbols = ref({});
 
 const updateExchangeSymbols = () => {
   const symbolData = {
-    NIFTY: {
-      dhan: { exchangeCode: '0', exchangeSecurityId: '13' },
-      other: { exchangeCode: 'NSE', exchangeSecurityId: '26000' }
-    },
-    BANKNIFTY: {
-      dhan: { exchangeCode: '0', exchangeSecurityId: '25' },
-      other: { exchangeCode: 'NSE', exchangeSecurityId: '26009' }
-    },
-    FINNIFTY: {
-      dhan: { exchangeCode: '0', exchangeSecurityId: '27' },
-      other: { exchangeCode: 'NSE', exchangeSecurityId: '26037' }
-    },
-    MIDCPNIFTY: {
-      dhan: { exchangeCode: '0', exchangeSecurityId: '442' },
-      other: { exchangeCode: 'NSE', exchangeSecurityId: '26074' }
-    },
-    NIFTYNXT50: {
-      dhan: { exchangeCode: '0', exchangeSecurityId: '38' },
-      other: { exchangeCode: 'NSE', exchangeSecurityId: '26013' }
-    },
-    SENSEX: {
-      dhan: { exchangeCode: '1', exchangeSecurityId: '51' },
-      other: { exchangeCode: 'BSE', exchangeSecurityId: '1' }
-    },
-    BANKEX: {
-      dhan: { exchangeCode: '1', exchangeSecurityId: '69' },
-      other: { exchangeCode: 'BSE', exchangeSecurityId: '12' }
-    },
-    SENSEX50: {
-      dhan: { exchangeCode: '1', exchangeSecurityId: '83' },
-      other: { exchangeCode: 'BSE', exchangeSecurityId: '47' }
-    },
+    NIFTY: { exchangeCode: 'NSE', exchangeSecurityId: '26000' },
+    BANKNIFTY: { exchangeCode: 'NSE', exchangeSecurityId: '26009' },
+    FINNIFTY: { exchangeCode: 'NSE', exchangeSecurityId: '26037' },
+    MIDCPNIFTY: { exchangeCode: 'NSE', exchangeSecurityId: '26074' },
+    SENSEX: { exchangeCode: 'BSE', exchangeSecurityId: '1' },
+    BANKEX: { exchangeCode: 'BSE', exchangeSecurityId: '12' }
   };
 
   if (selectedBroker.value?.brokerName === 'Dhan') {
     exchangeSymbols.value = {
-      NSE: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'NIFTYNXT50'],
-      BSE: ['SENSEX', 'BANKEX', 'SENSEX50'],
+      NSE: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'],
+      BSE: ['SENSEX', 'BANKEX'],
     };
   } else if (selectedBroker.value?.brokerName === 'Flattrade' || selectedBroker.value?.brokerName === 'Shoonya') {
     exchangeSymbols.value = {
-      NFO: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'NIFTYNXT50'],
-      BFO: ['SENSEX', 'BANKEX', 'SENSEX50'],
+      NFO: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'],
+      BFO: ['SENSEX', 'BANKEX'],
     };
   }
 
@@ -1284,19 +1256,18 @@ const synchronizeOnLoad = ref(true);
 const niftyPrice = ref('N/A');
 const bankNiftyPrice = ref('N/A');
 const finniftyPrice = ref('N/A');
-const niftynxt50Price = ref('N/A');
 const midcpniftyPrice = ref('N/A');
 const sensexPrice = ref('N/A');
 const bankexPrice = ref('N/A');
-const sensex50Price = ref('N/A');
-// Add a new function to get the initial price
+// Add a new function to get the initial price\
 const getInitialPrice = (symbol) => {
-  const strike = callStrikes.value.find(s =>
-    s.tradingSymbol.includes(symbol) &&
-    (selectedBroker.value?.brokerName === 'Dhan' ?
-      s.tradingSymbol.endsWith('-CE') :
-      /C\d+$/.test(s.tradingSymbol))
-  );
+  const strike = callStrikes.value.find(s => {
+    const symbolRegex = new RegExp(symbol, 'i');
+    return symbolRegex.test(s.tradingSymbol) && 
+      (selectedBroker.value?.brokerName === 'Dhan' ?
+        s.tradingSymbol.endsWith('-CE') :
+        /C\d+$/.test(s.tradingSymbol));
+  });
   return strike ? parseFloat(strike.strikePrice) : null;
 };
 const dataFetched = ref(false);
@@ -1305,9 +1276,9 @@ const fetchTradingData = async () => {
   if (selectedBroker.value?.brokerName === 'Dhan') {
     response = await fetch(`http://localhost:3000/dhanSymbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
   } else if (selectedBroker.value?.brokerName === 'Flattrade') {
-    // response = await fetch(`http://localhost:3000/flattradeSymbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
-    response = await fetch(`http://localhost:3000/shoonyaSymbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
-    // console.log('Flattrade Symbols:', response);
+    response = await fetch(`http://localhost:3000/flattradeSymbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
+    // response = await fetch(`http://localhost:3000/shoonyaSymbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
+    console.log('Flattrade Symbols:', response);
   } else if (selectedBroker.value?.brokerName === 'Shoonya') {
     response = await fetch(`http://localhost:3000/shoonyaSymbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
     // console.log('Shoonya Symbols:', response);
@@ -1322,29 +1293,27 @@ const fetchTradingData = async () => {
   // Filter by selected expiry date before sorting and mapping
   callStrikes.value = data.callStrikes
     .filter(strike => strike.expiryDate === selectedExpiry.value)
-    .sort((a, b) => parseInt(a.strikePrice) - parseInt(b.strikePrice))
-    .map(strike => ({ ...strike, strikePrice: parseInt(strike.strikePrice) }));
+    .sort((a, b) => parseFloat(a.strikePrice) - parseFloat(b.strikePrice))
+    .map(strike => ({ ...strike, strikePrice: parseFloat(strike.strikePrice) }));
 
   putStrikes.value = data.putStrikes
     .filter(strike => strike.expiryDate === selectedExpiry.value)
-    .sort((a, b) => parseInt(a.strikePrice) - parseInt(b.strikePrice))
-    .map(strike => ({ ...strike, strikePrice: parseInt(strike.strikePrice) }));
+    .sort((a, b) => parseFloat(a.strikePrice) - parseFloat(b.strikePrice))
+    .map(strike => ({ ...strike, strikePrice: parseFloat(strike.strikePrice) }));
 
   // After fetching and setting callStrikes and putStrikes
   if (niftyPrice.value === 'N/A') niftyPrice.value = getInitialPrice('NIFTY');
   if (bankNiftyPrice.value === 'N/A') bankNiftyPrice.value = getInitialPrice('BANKNIFTY');
   if (finniftyPrice.value === 'N/A') finniftyPrice.value = getInitialPrice('FINNIFTY');
-  if (niftynxt50Price.value === 'N/A') niftynxt50Price.value = getInitialPrice('NIFTYNXT50');
   if (midcpniftyPrice.value === 'N/A') midcpniftyPrice.value = getInitialPrice('MIDCPNIFTY');
   if (sensexPrice.value === 'N/A') sensexPrice.value = getInitialPrice('SENSEX');
   if (bankexPrice.value === 'N/A') bankexPrice.value = getInitialPrice('BANKEX');
-  if (sensex50Price.value === 'N/A') sensex50Price.value = getInitialPrice('SENSEX50');
 
   updateStrikesForExpiry(selectedExpiry.value);
   dataFetched.value = true;
 };
 // Add watchers for the price values
-watch([niftyPrice, bankNiftyPrice, finniftyPrice, niftynxt50Price, midcpniftyPrice, sensexPrice, bankexPrice, sensex50Price], () => {
+watch([niftyPrice, bankNiftyPrice, finniftyPrice, midcpniftyPrice, sensexPrice, bankexPrice], () => {
   if (selectedExpiry.value) {
     updateStrikesForExpiry(selectedExpiry.value);
   }
@@ -1403,16 +1372,12 @@ const updateStrikesForExpiry = (expiryDate) => {
       currentPrice = parseFloat(bankNiftyPrice.value);
     } else if (selectedMasterSymbol.value === 'FINNIFTY') {
       currentPrice = parseFloat(finniftyPrice.value);
-    } else if (selectedMasterSymbol.value === 'NIFTYNXT50') {
-      currentPrice = parseFloat(niftynxt50Price.value);
     } else if (selectedMasterSymbol.value === 'MIDCPNIFTY') {
       currentPrice = parseFloat(midcpniftyPrice.value);
     } else if (selectedMasterSymbol.value === 'SENSEX') {
       currentPrice = parseFloat(sensexPrice.value);
     } else if (selectedMasterSymbol.value === 'BANKEX') {
       currentPrice = parseFloat(bankexPrice.value);
-    } else if (selectedMasterSymbol.value === 'SENSEX50') {
-      currentPrice = parseFloat(sensex50Price.value);
     }
 
     if (currentPrice && !isNaN(currentPrice) && filteredCallStrikes.length > 0) {
@@ -1737,7 +1702,7 @@ const formatTime = (timeString) => {
   const [time] = timeString.split(' ');
   const [hours, minutes, seconds] = time.split(':');
 
-  let formattedHours = parseInt(hours, 10);
+  let formattedHours = parseFloat(hours, 10);
   const ampm = formattedHours >= 12 ? 'PM' : 'AM';
   formattedHours = formattedHours % 12 || 12;
 
@@ -1851,7 +1816,7 @@ const fetchShoonyaPositions = async () => {
       subscribeToOptions();
     } else if (positionBookRes.data.emsg === 'no data' || positionBookRes.data.emsg.includes('no data')) {
       shoonyaPositionBook.value = [];
-      console.log('No positions in Shoonya Position Book');
+      // console.log('No positions in Shoonya Position Book');
     } else {
       const errorMsg = positionBookRes.data.emsg || 'Unknown error';
       console.error('Error fetching position book:', errorMsg);
@@ -1966,10 +1931,8 @@ const quantities = ref({
   BANKNIFTY: { lotSize: 15, maxLots: 60 },
   FINNIFTY: { lotSize: 25, maxLots: 72 },
   MIDCPNIFTY: { lotSize: 50, maxLots: 56 },
-  NIFTYNXT50: { lotSize: 10, maxLots: 60 },
   SENSEX: { lotSize: 10, maxLots: 100 },
   BANKEX: { lotSize: 15, maxLots: 60 },
-  SENSEX50: { lotSize: 25, maxLots: 72 }
 });
 const availableQuantities = ref([]);
 
@@ -2410,9 +2373,9 @@ const placeOrderForPosition = async (transactionType, optionType, position) => {
 
   } catch (error) {
     console.error('Failed to place order for position:', error);
-    toastMessage.value = 'Failed to place order for SL/Target';
+    toastMessage.value = errorMessage;
     showToast.value = true;
-  }
+    }
 };
 
 // Close all positions for Dhan, Flattrade, or Shoonya
@@ -2853,7 +2816,7 @@ const totalProfit = computed(() => {
 
 const calculateUnrealizedProfit = (position) => {
   const ltp = positionLTPs.value[position.tsym || position.tradingSymbol] || position.lp || position.lastPrice;
-  const netQty = parseFloat(position.netqty || position.netQty);
+  const netQty = parseInt(position.netqty || position.netQty);
   const netAvgPrice = parseFloat(position.netavgprc || position.averagePrice);
   const priceFactor = parseFloat(position.prcftr || position.multiplier || 1);
 
@@ -3001,21 +2964,9 @@ const setFlattradeCredentials = async () => {
       return;
     }
 
-    const symbolInfo = exchangeSymbols.value.symbolData[selectedMasterSymbol.value];
-    if (!symbolInfo || !symbolInfo.other) {
-      console.error('Invalid or missing symbol info for Flattrade');
-      toastMessage.value = 'Invalid symbol selected for Flattrade';
-      showToast.value = true;
-      return;
-    }
-
-    const { exchangeCode: flattradeExchangeSegment, exchangeSecurityId: flattradeSecurityId } = symbolInfo.other;
-
     const response = await axios.post('http://localhost:3000/api/set-flattrade-credentials', {
       usersession: apiToken,
       userid: clientId,
-      flattradeExchangeSegment,
-      flattradeSecurityId,
       defaultCallSecurityId: defaultCallSecurityId.value,
       defaultPutSecurityId: defaultPutSecurityId.value
     });
@@ -3049,27 +3000,14 @@ const setShoonyaCredentials = async () => {
     const apiToken = localStorage.getItem('SHOONYA_API_TOKEN');
 
     if (!clientId || !apiToken) {
-      console.error('Shoonya client ID or API token is missing');
-      toastMessage.value = 'Shoonya credentials are missing';
+      console.error('Flattrade broker is not connected');
+      toastMessage.value = 'Flattrade broker is not connected';
       showToast.value = true;
       return;
     }
-
-    const symbolInfo = exchangeSymbols.value.symbolData[selectedMasterSymbol.value];
-    if (!symbolInfo || !symbolInfo.other) {
-      console.error('Invalid or missing symbol info for Shoonya');
-      toastMessage.value = 'Invalid symbol selected for Shoonya';
-      showToast.value = true;
-      return;
-    }
-
-    const { exchangeCode: shoonyaExchangeSegment, exchangeSecurityId: shoonyaSecurityId } = symbolInfo.other;
-
     const response = await axios.post('http://localhost:3000/api/set-shoonya-credentials', {
       usersession: apiToken,
       userid: clientId,
-      shoonyaExchangeSegment,
-      shoonyaSecurityId,
       defaultCallSecurityId: defaultCallSecurityId.value,
       defaultPutSecurityId: defaultPutSecurityId.value
     });
@@ -3110,16 +3048,6 @@ const setDhanCredentials = async () => {
       return;
     }
 
-    const symbolInfo = exchangeSymbols.value.symbolData[selectedMasterSymbol.value];
-    if (!symbolInfo || !symbolInfo.dhan) {
-      console.error('Invalid or missing symbol info for Dhan');
-      toastMessage.value = 'Invalid symbol selected for Dhan';
-      showToast.value = true;
-      return;
-    }
-
-    const { exchangeCode: dhanExchangeSegment, exchangeSecurityId: dhanSecurityId } = symbolInfo.dhan;
-
     const response = await axios.post('http://localhost:3000/api/set-dhan-credentials', {
       accessToken: apiToken,
       clientId: clientId,
@@ -3146,14 +3074,11 @@ const defaultPutSecurityId = ref(null);
 const connectWebSocket = () => {
   let websocketUrl;
 
-  if (selectedBroker.value?.brokerName === 'Flattrade') {
+  if (selectedBroker.value?.brokerName === 'Flattrade' || selectedBroker.value?.brokerName === 'Dhan') {
     websocketUrl = 'ws://localhost:8765';
-  } else if (selectedBroker.value?.brokerName === 'Shoonya') {
+  } else if (selectedBroker.value?.brokerName === 'Shoonya' || selectedBroker.value?.brokerName === 'Dhan') {
     websocketUrl = 'ws://localhost:8766';
-  } else if (selectedBroker.value?.brokerName === 'Dhan') {
-    websocketUrl = 'ws://localhost:8767';
-  }
-
+  } 
   console.log(`Connecting to WebSocket at ${websocketUrl}`);
   socket.value = new WebSocket(websocketUrl);
 
@@ -3163,22 +3088,16 @@ const connectWebSocket = () => {
     // console.log('WebSocket message received:', quoteData);
     if (quoteData.lp) {
       const symbolInfo = exchangeSymbols.value.symbolData[selectedMasterSymbol.value];
-      if (symbolInfo) {
-        const { exchangeSecurityId } =
-          selectedBroker.value?.brokerName === 'Dhan' ? symbolInfo.dhan : symbolInfo.other;
-
-        if (quoteData.tk === exchangeSecurityId) {
-          // Update the price for the selected master symbol
-          switch (selectedMasterSymbol.value) {
-            case 'NIFTY': niftyPrice.value = quoteData.lp; break;
-            case 'BANKNIFTY': bankNiftyPrice.value = quoteData.lp; break;
-            case 'FINNIFTY': finniftyPrice.value = quoteData.lp; break;
-            case 'NIFTYNXT50': niftynxt50Price.value = quoteData.lp; break;
-            case 'MIDCPNIFTY': midcpniftyPrice.value = quoteData.lp; break;
-            case 'SENSEX': sensexPrice.value = quoteData.lp; break;
-            case 'BANKEX': bankexPrice.value = quoteData.lp; break;
-            case 'SENSEX50': sensex50Price.value = quoteData.lp; break;
-          }
+      if (symbolInfo && quoteData.tk === symbolInfo.exchangeSecurityId) {
+        // Update the price for the selected master symbol
+        switch (selectedMasterSymbol.value) {
+          case 'NIFTY': niftyPrice.value = quoteData.lp; break;
+          case 'BANKNIFTY': bankNiftyPrice.value = quoteData.lp; break;
+          case 'FINNIFTY': finniftyPrice.value = quoteData.lp; break;
+          case 'MIDCPNIFTY': midcpniftyPrice.value = quoteData.lp; break;
+          case 'SENSEX': sensexPrice.value = quoteData.lp; break;
+          case 'BANKEX': bankexPrice.value = quoteData.lp; break;
+          case 'SENSEX50': sensex50Price.value = quoteData.lp; break;
         }
       }
       else if (quoteData.tk === defaultCallSecurityId.value) {
@@ -3225,9 +3144,7 @@ const subscribeToMasterSymbol = () => {
   if (socket.value && socket.value.readyState === WebSocket.OPEN) {
     const symbolInfo = exchangeSymbols.value.symbolData[selectedMasterSymbol.value];
     if (symbolInfo) {
-      const brokerType = selectedBroker.value?.brokerName === 'Dhan' ? 'dhan' : 'other';
-      const { exchangeCode, exchangeSecurityId } = symbolInfo[brokerType];
-      const symbolToSubscribe = `${exchangeCode}|${exchangeSecurityId}`;
+      const symbolToSubscribe = `${symbolInfo.exchangeCode}|${symbolInfo.exchangeSecurityId}`;
       if (symbolToSubscribe !== `${currentSubscriptions.value.masterSymbolExchangeCode}|${currentSubscriptions.value.masterSymbolSecurityId}`) {
         const data = {
           action: 'subscribe',
@@ -3236,8 +3153,8 @@ const subscribeToMasterSymbol = () => {
         // console.log('Sending master symbol subscribe data:', data);
         socket.value.send(JSON.stringify(data));
         currentSubscriptions.value.masterSymbol = selectedMasterSymbol.value;
-        currentSubscriptions.value.masterSymbolExchangeCode = exchangeCode;
-        currentSubscriptions.value.masterSymbolSecurityId = exchangeSecurityId;
+        currentSubscriptions.value.masterSymbolExchangeCode = symbolInfo.exchangeCode;
+        currentSubscriptions.value.masterSymbolSecurityId = symbolInfo.exchangeSecurityId;
       }
     }
   }
@@ -3246,7 +3163,7 @@ const subscribeToMasterSymbol = () => {
 const subscribeToOptions = () => {
   if (socket.value && socket.value.readyState === WebSocket.OPEN) {
     const symbolsToSubscribe = [];
-    const exchangeSegment = getExchangeSegment().segment;
+    const exchangeSegment = getExchangeSegment();
 
     // Add subscriptions for Call and Put options
     if (defaultCallSecurityId.value && defaultCallSecurityId.value !== 'N/A' && defaultCallSecurityId.value !== currentSubscriptions.value.callOption) {
