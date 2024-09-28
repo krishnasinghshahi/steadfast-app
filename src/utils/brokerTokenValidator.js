@@ -4,6 +4,7 @@ import { reactive } from 'vue'
 const tokenStatus = reactive({
   Flattrade: 'unknown',
   Shoonya: 'unknown',
+  Upstox: 'unknown',
   PaperTrading: 'valid' // Always valid for paper trading
 })
 
@@ -53,6 +54,27 @@ const shoonyaFundLimits = async () => {
   }
 }
 
+const upstoxFundLimits = async () => {
+  const apiToken = localStorage.getItem('UPSTOX_API_TOKEN') || '';
+  const clientId = JSON.parse(localStorage.getItem('broker_Upstox') || '{}').clientId;
+  
+  if (!apiToken || !clientId) {
+    throw new Error('Token or client ID is missing for Upstox.');
+  }
+
+  try {
+    const response = await axios.get('/upstoxApi/user/get-funds-and-margin', {
+      headers: { 
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${apiToken}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error('Error fetching Upstox fund limits: ' + error.message);
+  }
+};
+
 const validateToken = async (brokerName) => {
   try {
     switch (brokerName) {
@@ -63,6 +85,10 @@ const validateToken = async (brokerName) => {
       case 'Shoonya':
         await shoonyaFundLimits()
         tokenStatus.Shoonya = 'valid'
+        break
+      case 'Upstox':
+        await upstoxFundLimits()
+        tokenStatus.Upstox = 'valid'
         break
       case 'PaperTrading':
         // Paper trading is always valid, no need to validate
@@ -79,7 +105,7 @@ const validateToken = async (brokerName) => {
 }
 
 const checkAllTokens = async () => {
-  const brokers = ['Flattrade', 'Shoonya', 'PaperTrading']
+  const brokers = ['Flattrade', 'Shoonya', 'Upstox', 'PaperTrading']
   for (const broker of brokers) {
     await validateToken(broker)
   }

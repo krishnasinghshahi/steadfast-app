@@ -21,6 +21,7 @@
             <option value="">Select a broker</option>
             <option value="Flattrade">Flattrade</option>
             <option value="Shoonya">Shoonya</option>
+            <option value="Upstox">Upstox</option>
             <option value="PaperTrading">Paper Trading</option>
           </select>
 
@@ -35,13 +36,13 @@
           <input v-model="clientId" type="text" class="form-control" id="ClientID" required>
 
           <!-- API Key (for Flattrade, Shoonya, and Paper Trading) -->
-          <label for="APIKey" class="form-label mb-0 mt-3"><b>API Key</b></label>
-          <input v-model="apiKey" type="text" class="form-control" id="APIKey" required>
+          <label v-if="selectedBroker !== 'Upstox'" for="APIKey" class="form-label mb-0 mt-3"><b>API Key</b></label>
+          <input v-if="selectedBroker !== 'Upstox'" v-model="apiKey" type="text" class="form-control" id="APIKey" required>
 
-          <!-- API Secret Key (only for Flattrade) -->
-          <label v-if="selectedBroker === 'Flattrade'" for="APISecretKey" class="form-label mb-0 mt-3"><b>API Secret
+          <!-- API Secret Key (only for Flattrade and Upstox) -->
+          <label v-if="['Flattrade', 'Upstox'].includes(selectedBroker)" for="APISecretKey" class="form-label mb-0 mt-3"><b>API Secret
               Key</b></label>
-          <input v-if="selectedBroker === 'Flattrade'" v-model="apiSecret" type="text" class="form-control"
+          <input v-if="['Flattrade', 'Upstox'].includes(selectedBroker)" v-model="apiSecret" type="text" class="form-control"
             id="APISecretKey" required>
 
           <!-- Redirect URL -->
@@ -95,6 +96,8 @@ const getBrokerDashboardLink = computed(() => {
       return 'https://wall.flattrade.in/';
     case 'Shoonya':
       return 'https://prism.shoonya.com/';
+    case 'Upstox':
+      return 'https://account.upstox.com/developer/apps';
     case 'PaperTrading':
       return 'https://papertrading.example.com/';
     default:
@@ -117,7 +120,9 @@ const addBroker = () => {
   if (selectedBroker.value === 'Flattrade') {
     brokerDetails.apiSecret = apiSecret.value;
   }
-
+  if (selectedBroker.value === 'Upstox') {
+    brokerDetails.apiSecret = apiSecret.value;
+  }
   // Store in localStorage
   localStorage.setItem(`broker_${selectedBroker.value}`, JSON.stringify(brokerDetails));
 

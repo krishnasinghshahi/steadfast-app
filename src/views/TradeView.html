@@ -56,10 +56,10 @@
         id="showAdaptabilityGuideBtn"
         data-bs-toggle="modal"
         data-bs-target="#adaptabilityEnforcingGuideModal"
-        >ℹ️</span
+        ></span
       >
       ₹ {{ availableBalance !== null ? availableBalance.toLocaleString('en-IN', {
-      maximumFractionDigits: 0 }) : 'N/A' }}
+      maximumFractionDigits: 2 }) : 'N/A' }}
     </p>
   </div>
 
@@ -825,7 +825,7 @@
           <div class="row mt-2">
             <div class="col-6 col-md-12 col-lg-12">
               <button
-                v-if="selectedShoonyaPositionsSet.size === 0 && selectedFlattradePositionsSet.size === 0"
+                v-if="selectedShoonyaPositionsSet.size === 0 && selectedFlattradePositionsSet.size === 0 && selectedUpstoxPositionsSet.size === 0"
                 class="btn btn-sm btn-outline fs-5 col-12 col-md-11 col-lg-10"
                 @click="closeAllPositions"
               >
@@ -833,7 +833,7 @@
                 Close All
               </button>
               <button
-                v-if="selectedShoonyaPositionsSet.size > 0 || selectedFlattradePositionsSet.size > 0"
+                v-if="selectedShoonyaPositionsSet.size > 0 || selectedFlattradePositionsSet.size > 0 || selectedUpstoxPositionsSet.size > 0"
                 class="btn btn-sm btn-outline fs-5 col-12 col-md-11 col-lg-10"
                 @click="closeSelectedPositions"
               >
@@ -1029,7 +1029,7 @@
               data-bs-toggle="modal"
               data-bs-target="#ReversePositionsConfirmationModal"
               @click="setReverseMode('selected')"
-              v-if="selectedShoonyaPositionsSet.size > 0 || selectedFlattradePositionsSet.size > 0"
+              v-if="selectedShoonyaPositionsSet.size > 0 || selectedFlattradePositionsSet.size > 0 || selectedUpstoxPositionsSet.size > 0"
             >
               🔃 Selected
             </button>
@@ -1394,6 +1394,180 @@
             </tbody>
           </table>
         </div>
+        <!-- Upstox Positions -->
+        <div class="table-responsive" v-if="activeFetchFunction === 'fetchUpstoxPositions'">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th scope="col">Position</th>
+                <th scope="col">Avg</th>
+                <th scope="col">LTP</th>
+                <th scope="col">TSL / SL</th>
+                <th scope="col">Target</th>
+                <th scope="col">Realized</th>
+                <th scope="col">Unrealized</th>
+                <th scope="col">Select</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-if="upstoxPositionBook.length">
+                <tr v-for="upstoxPosition in sortedPositions" :key="upstoxPosition.trading_symbol">
+                  <td>
+                    <div class="d-flex">{{ upstoxPosition.trading_symbol }}</div>
+                    <div class="d-flex flex-row">
+                      <span
+                        :class="upstoxPosition.quantity > 0 ? 'text-success' : upstoxPosition.quantity < 0 ? 'text-danger' : null"
+                      >
+                        Qty: {{ upstoxPosition.quantity }}
+                      </span>
+                      <span class="ms-2">
+                        Side:
+                        <b
+                          >{{ upstoxPosition.quantity > 0 ? 'BUY' : upstoxPosition.quantity < 0 ? 'SELL' :
+                          '-' }}</b
+                        >
+                      </span>
+                      <span class="ms-2"> Type: {{ upstoxPosition.product === 'I' ? 'INTRADAY' : upstoxPosition.product  === 'D' ? 'CARRYFORWAR' :upstoxPosition.product }} </span>
+                    </div>
+                    <div class="mt-1 d-flex flex-row">
+                      <span class="text-success">₹{{ upstoxPosition.buy_value }}</span>
+                      <span class="ms-2 text-danger">₹{{ upstoxPosition.sell_value }}</span>
+                    </div>
+                  </td>
+                  <td>{{ upstoxPosition.quantity }}</td>
+                  <td>{{ positionLTPs[upstoxPosition.trading_symbol] || upstoxPosition.last_price ||  '-' }}</td>
+                  <td v-if="upstoxPosition.quantity != 0">
+                    <!-- SL & TSL -->
+                    <div class="row">
+                      <div class="col-12" v-if="trailingStoplosses[upstoxPosition.trading_symbol] !== null">
+                        <div class="d-flex align-items-center">
+                          <span class="me-2">TSL:</span>
+                          <span class="bg-danger text-white px-2 py-1 rounded">
+                            {{ trailingStoplosses[upstoxPosition.trading_symbol] }}
+                          </span>
+                        </div>
+                      </div>
+                      <div class="col-12" v-else-if="stoplosses[upstoxPosition.trading_symbol] !== null">
+                        <div class="btn-group" role="group">
+                          <button
+                            class="btn btn-sm btn-outline-danger"
+                            @click="decreaseStoploss(upstoxPosition)"
+                          >
+                            - SL
+                          </button>
+                          <span class="d-flex align-items-center bg-danger text-white px-2">
+                            {{ stoplosses[upstoxPosition.trading_symbol] }}
+                          </span>
+                          <button
+                            class="btn btn-sm btn-outline-success"
+                            @click="increaseStoploss(upstoxPosition)"
+                          >
+                            + SL
+                          </button>
+                        </div>
+                      </div>
+                      <div v-else>No SL set</div>
+                    </div>
+                    <div class="btn-group mt-2" role="group">
+                      <button
+                        v-if="trailingStoplosses[upstoxPosition.trading_symbol] === null && stoplosses[upstoxPosition.trading_symbol] === null"
+                        class="btn btn-sm btn-outline"
+                        @click="setStoploss(upstoxPosition, 'trailing')"
+                      >
+                        Set TSL
+                      </button>
+                      <button
+                        v-if="trailingStoplosses[upstoxPosition.trading_symbol] === null && stoplosses[upstoxPosition.trading_symbol] === null"
+                        class="btn btn-sm btn-outline"
+                        @click="setStoploss(upstoxPosition, 'static')"
+                      >
+                        Set SL
+                      </button>
+                      <button
+                        v-if="trailingStoplosses[upstoxPosition.trading_symbol] !== null || stoplosses[upstoxPosition.trading_symbol] !== null"
+                        class="btn btn-sm btn-outline-danger"
+                        @click="removeStoploss(upstoxPosition)"
+                      >
+                        Remove SL
+                      </button>
+                    </div>
+                  </td>
+                  <td v-else style="text-align: center">-</td>
+                  <td v-if="upstoxPosition.quantity != 0">
+                    <!-- TG -->
+                    <div class="row">
+                      <div class="col-12" v-if="targets[upstoxPosition.trading_symbol] !== null">
+                        <div class="btn-group" role="group">
+                          <button
+                            class="btn btn-sm btn-outline-danger"
+                            @click="decreaseTarget(upstoxPosition)"
+                          >
+                            - TG
+                          </button>
+                          <span class="d-flex align-items-center bg-success text-white px-2">
+                            {{ targets[upstoxPosition.trading_symbol] }}
+                          </span>
+                          <button
+                            class="btn btn-sm btn-outline-success"
+                            @click="increaseTarget(upstoxPosition)"
+                          >
+                            + TG
+                          </button>
+                        </div>
+                      </div>
+                      <div v-else>No Target set</div>
+                    </div>
+                    <div class="btn-group mt-2" role="group">
+                      <button
+                        v-if="targets[upstoxPosition.trading_symbol] === null"
+                        class="btn btn-sm btn-outline-success"
+                        @click="setTarget(upstoxPosition)"
+                      >
+                        Set TG
+                      </button>
+                      <button
+                        v-if="targets[upstoxPosition.trading_symbol] !== null"
+                        class="btn btn-sm btn-outline-danger"
+                        @click="removeTarget(upstoxPosition)"
+                      >
+                        Remove TG
+                      </button>
+                    </div>
+                  </td>
+                  <td v-else style="text-align: center">-</td>
+                  <td
+                    :class="upstoxPosition.realised > 0 ? 'text-success' : upstoxPosition.realised < 0 ? 'text-danger' : null"
+                  >
+                    {{ upstoxPosition.realised }}
+                  </td>
+                  <td
+                    :class="upstoxPosition.calculatedUrmtom > 0 ? 'text-success' : upstoxPosition.calculatedUrmtom < 0 ? 'text-danger' : null"
+                  >
+                    {{ upstoxPosition.calculatedUrmtom.toFixed(2) }}
+                  </td>
+                  <td class="position-relative">
+                    <label
+                      class="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
+                    >
+                      <input
+                        type="checkbox"
+                        :id="'upstoxPosition-' + upstoxPosition.trading_symbol"
+                        v-model="selectedUpstoxPositionsSet"
+                        :value="upstoxPosition.trading_symbol"
+                        :disabled="upstoxPosition.quantity == 0"
+                      />
+                    </label>
+                  </td>
+                </tr>
+              </template>
+              <tr v-else>
+                <td colspan="10" class="text-center">
+                  No positions on selected broker {{ selectedBroker.brokerName }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         <p class="text-secondary">
           Aim for a 1-3% daily target and set a 1-1.5% stoploss to manage trades effectively and
@@ -1528,6 +1702,66 @@
               </template>
               <tr v-else>
                 <td colspan="9" class="text-center">
+                  No orders or trades on selected broker {{ selectedBroker.brokerName }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Upstox Trades -->
+        <div class="table-responsive" v-if="activeFetchFunction === 'fetchUpstoxOrdersTradesBook'">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th scope="col">Type</th>
+                <th scope="col">Side</th>
+                <th scope="col">Details</th>
+                <th scope="col">Qty</th>
+                <th scope="col">Price</th>
+                <th scope="col">Time</th>
+                <th scope="col">Status & Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-if="combinedOrdersAndTrades.length">
+                <template v-for="item in combinedOrdersAndTrades" :key="item.order?.order_id || item.trade?.order_id">
+                  <tr v-if="item.order && item.order.status !== 'complete'">
+                    <td>Order</td>
+                    <td>{{ item.order.transaction_type }}</td>
+                    <td>
+                      {{ item.order.order_id }}
+                      <br />
+                      {{ item.order.trading_symbol }}
+                    </td>
+                    <td>{{ item.order.quantity }}</td>
+                    <td>{{ item.order.price }}</td>
+                    <td>{{ formatTime(item.order.order_timestamp) }}</td>
+                    <td
+                      :class="{
+                        'text-danger': item.order.status === 'rejected',
+                        'text-warning': item.order.status === 'pending' || item.order.status === 'open'
+                      }"
+                    >
+                      {{ item.order.status }} {{ item.order.status_message }}
+                    </td>
+                  </tr>
+                  <tr v-if="item.trade || (item.order && item.order.status === 'complete')" class="nested-trade-row">
+                    <td>Trade</td>
+                    <td>{{ item.trade?.transaction_type || item.order?.transaction_type }}</td>
+                    <td>
+                      {{ item.trade?.order_id || item.order?.order_id }}
+                      <br />
+                      {{ item.trade?.trading_symbol || item.order?.trading_symbol }}
+                    </td>
+                    <td>{{ item.trade?.quantity || item.order?.quantity }}</td>
+                    <td>{{ item.trade?.average_price || item.order?.average_price }}</td>
+                    <td>{{ formatTime(item.trade?.exchange_timestamp || item.order?.exchange_timestamp) }}</td>
+                    <td class="text-success">EXECUTED</td>
+                  </tr>
+                </template>
+              </template>
+              <tr v-else>
+                <td colspan="7" class="text-center">
                   No orders or trades on selected broker {{ selectedBroker.brokerName }}
                 </td>
               </tr>

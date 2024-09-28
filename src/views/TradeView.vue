@@ -50,11 +50,14 @@ const dataFetched = ref(false);
 const lotsPerSymbol = ref({});
 const flatOrderBook = ref([]);
 const flatTradeBook = ref([]);
+const upstoxOrderBook = ref([]);
+const upstoxTradeBook = ref([]);
 const token = ref('');
 const shoonyaOrderBook = ref([]);
 const shoonyaTradeBook = ref([]);
 const flatTradePositionBook = ref([]);
 const shoonyaPositionBook = ref([]);
+const upstoxPositionBook = ref([]);
 const fundLimits = ref({});
 const showBrokerClientId = ref(false);
 const quantities = ref({
@@ -74,6 +77,7 @@ const modalTransactionType = ref('');
 const modalOptionType = ref('');
 const selectedShoonyaPositionsSet = ref(new Set());
 const selectedFlattradePositionsSet = ref(new Set());
+const selectedUpstoxPositionsSet = ref(new Set());
 const positionsInExecution = ref({});
 const clockEmojis = ['🕛', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚'];
 const currentClockEmoji = ref(clockEmojis[new Date().getHours() % clockEmojis.length]);
@@ -206,12 +210,15 @@ const putDepth = ref({
 const brokerStatus = computed(() => {
   const flattradeDetails = JSON.parse(localStorage.getItem('broker_Flattrade') || '{}');
   const shoonyaDetails = JSON.parse(localStorage.getItem('broker_Shoonya') || '{}');
+  const upstoxDetails = JSON.parse(localStorage.getItem('broker_Upstox') || '{}');
   const paperTradingDetails = JSON.parse(localStorage.getItem('broker_PaperTrading') || '{}');
 
   const flattradeClientId = flattradeDetails.clientId;
   const flattradeApiToken = localStorage.getItem('FLATTRADE_API_TOKEN');
   const shoonyaApiToken = localStorage.getItem('SHOONYA_API_TOKEN');
   const shoonyaClientId = shoonyaDetails.clientId;
+  const upstoxClientId = upstoxDetails.clientId;
+  const upstoxApiToken = localStorage.getItem('UPSTOX_API_TOKEN');
   const paperTradingClientId = paperTradingDetails.clientId;
 
   if (selectedBroker.value?.brokerName === 'Flattrade') {
@@ -223,6 +230,12 @@ const brokerStatus = computed(() => {
   else if (selectedBroker.value?.brokerName === 'Shoonya') {
     if (shoonyaClientId && shoonyaApiToken) {
       return tokenStatus.Shoonya === 'valid' ? 'Connected' : 'Token Expired';
+    }
+    return 'Not Connected';
+  }
+  else if (selectedBroker.value?.brokerName === 'Upstox') {
+    if (upstoxClientId && upstoxApiToken) {
+      return tokenStatus.Upstox === 'valid' ? 'Connected' : 'Token Expired';
     }
     return 'Not Connected';
   }
@@ -285,8 +298,8 @@ const maxLots = computed(() => {
 const combinedOrdersAndTrades = computed(() => {
   const combined = {};
 
+  // Process based on selected broker
   if (selectedBroker.value?.brokerName === 'Flattrade') {
-    // Process Flattrade orders and trades
     if (Array.isArray(flatOrderBook.value)) {
       flatOrderBook.value.forEach(order => {
         combined[order.norenordno] = { order, trade: null };
@@ -303,7 +316,6 @@ const combinedOrdersAndTrades = computed(() => {
       });
     }
   } else if (selectedBroker.value?.brokerName === 'Shoonya') {
-    // Process Shoonya orders and trades
     if (Array.isArray(shoonyaOrderBook.value)) {
       shoonyaOrderBook.value.forEach(order => {
         combined[order.norenordno] = { order, trade: null };
@@ -319,23 +331,60 @@ const combinedOrdersAndTrades = computed(() => {
         }
       });
     }
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    if (upstoxOrderBook.value && Array.isArray(upstoxOrderBook.value.data)) {
+      upstoxOrderBook.value.data.forEach(order => {
+        combined[order.order_id] = { order, trade: null };
+      });
+    }
+
+    if (upstoxTradeBook.value && Array.isArray(upstoxTradeBook.value.data)) {
+      upstoxTradeBook.value.data.forEach(trade => {
+        if (combined[trade.order_id]) {
+          combined[trade.order_id].trade = trade;
+        } else {
+          combined[trade.order_id] = { order: null, trade };
+        }
+      });
+    }
   }
 
+  // Sorting combined orders and trades
   return Object.values(combined).sort((a, b) => {
-    const aTime = a.order?.norentm || a.trade?.norentm;
-    const bTime = b.order?.norentm || b.trade?.norentm;
-    return new Date(bTime) - new Date(aTime); // Sort in descending order (most recent first)
+    let aTime, bTime;
+
+    if (['Flattrade', 'Shoonya'].includes(selectedBroker.value?.brokerName)) {
+      aTime = a.order?.norentm || a.trade?.norentm;
+      bTime = b.order?.norentm || b.trade?.norentm;
+    } else if (selectedBroker.value?.brokerName === 'Upstox') {
+      aTime = a.order?.order_timestamp || a.trade?.order_timestamp;
+      bTime = b.order?.order_timestamp || b.trade?.order_timestamp;
+    }
+
+    // Sort based on timestamps
+    if (aTime && bTime) {
+      return new Date(bTime) - new Date(aTime); // Sort in descending order
+    } else if (aTime) {
+      return -1; // If aTime is defined and bTime is not, a comes first
+    } else if (bTime) {
+      return 1; // If bTime is defined and aTime is not, b comes first
+    } else {
+      return 0; // If both are undefined, maintain original order
+    }
   });
 });
 const sortedPositions = computed(() => {
   return [...positionsWithCalculatedProfit.value].sort((a, b) => {
     // First, sort by open/closed status
-    if (Number(a.netqty) !== 0 && Number(b.netqty) === 0) return -1;
-    if (Number(a.netqty) === 0 && Number(b.netqty) !== 0) return 1;
+    const aNetQty = Number(a.netqty) || Number(a.quantity); // Fallback to quantity if netqty is falsy
+    const bNetQty = Number(b.netqty) || Number(b.quantity); // Fallback to quantity if netqty is falsy
+
+    if (aNetQty !== 0 && bNetQty === 0) return -1; // a is open, b is closed
+    if (aNetQty === 0 && bNetQty !== 0) return 1;  // a is closed, b is open
 
     // Then, for open positions, sort by absolute quantity in descending order
-    if (Number(a.netqty) !== 0 && Number(b.netqty) !== 0) {
-      return Math.abs(Number(b.netqty)) - Math.abs(Number(a.netqty));
+    if (aNetQty !== 0 && bNetQty !== 0) {
+      return Math.abs(bNetQty) - Math.abs(aNetQty);
     }
 
     // For closed positions, maintain their original order
@@ -347,6 +396,8 @@ const orderTypes = computed(() => {
     selectedBroker.value?.brokerName === 'Shoonya' ||
     selectedBroker.value?.brokerName === 'PaperTrading') {
     return ['MKT', 'LMT', 'LMT_LTP', 'LMT_OFFSET', 'MKT_PROTECTION'];
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return ['MARKET', 'LIMIT', 'LMT_LTP', 'LMT_OFFSET', 'MKT_PROTECTION'];
   }
   return [];
 });
@@ -377,6 +428,9 @@ const productTypes = computed(() => {
   else if (selectedBroker.value?.brokerName === 'Shoonya') {
     return ['Intraday', 'Margin'];
   }
+  else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return ['Intraday', 'Carryforward'];
+  }
   else if (selectedBroker.value?.brokerName === 'PaperTrading') {
     return ['Intraday', 'Margin'];
   }
@@ -397,8 +451,13 @@ const availableBalance = computed(() => {
     const balance = Math.floor(availableFunds - marginUsed);
     // console.log(`${selectedBroker.value?.brokerName} Available Balance:`, balance);
     return balance;
-  }
-  if (selectedBroker.value?.brokerName === 'PaperTrading') {
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    if (fundLimits.value) {
+        const cash = parseFloat(fundLimits.value.cash) || 0;
+        return cash; // Directly return the cash value
+    }
+    return 0;
+  } else if (selectedBroker.value?.brokerName === 'PaperTrading') {
     const cash = Number(fundLimits.value.cash) || 0;
     const payin = Number(fundLimits.value.payin) || 0;
     const marginUsed = Number(fundLimits.value.marginused) || 0;
@@ -420,6 +479,12 @@ const usedAmount = computed(() => {
     const marginUsed = Number(fundLimits.value.marginused) || 0;
     return marginUsed;
   }
+  else if (selectedBroker.value?.brokerName === 'Upstox') {
+    if (fundLimits.value) {
+        return Number(fundLimits.value.marginused) || 0;
+    }
+    return 0;
+  }
   return 0;
 });
 const formattedDate = computed(() => {
@@ -430,7 +495,7 @@ const formattedDate = computed(() => {
 const totalNetQty = computed(() => {
   const calculateTotalQty = (positions) => {
     return positions.reduce((total, position) => {
-      const qty = Math.abs(parseInt(position.netQty || position.netqty, 10));
+      const qty = Math.abs(parseInt(position.netQty ?? position.netqty ?? position.quantity, 10));
       return total + qty;
     }, 0);
   };
@@ -439,6 +504,8 @@ const totalNetQty = computed(() => {
     return calculateTotalQty(flatTradePositionBook.value);
   } else if (selectedBroker.value?.brokerName === 'Shoonya') {
     return calculateTotalQty(shoonyaPositionBook.value);
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return calculateTotalQty(upstoxPositionBook.value);
   }
   return 0;
 });
@@ -447,6 +514,12 @@ const totalProfit = computed(() => {
     return positionsWithCalculatedProfit.value.reduce((acc, position) => {
       const unrealizedProfit = position.calculatedUrmtom;
       const realizedProfit = parseFloat(position.rpnl) || 0;
+      return acc + unrealizedProfit + realizedProfit;
+    }, 0);
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return positionsWithCalculatedProfit.value.reduce((acc, position) => {
+      const unrealizedProfit = position.calculatedUrmtom;
+      const realizedProfit = parseFloat(position.realised) || 0;
       return acc + unrealizedProfit + realizedProfit;
     }, 0);
   }
@@ -460,6 +533,11 @@ const positionsWithCalculatedProfit = computed(() => {
     }));
   } else if (selectedBroker.value?.brokerName === 'Shoonya') {
     return shoonyaPositionBook.value.map(position => ({
+      ...position,
+      calculatedUrmtom: calculateUnrealizedProfit(position)
+    }));
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return upstoxPositionBook.value.map(position => ({
       ...position,
       calculatedUrmtom: calculateUnrealizedProfit(position)
     }));
@@ -481,7 +559,7 @@ const totalBrokerage = computed(() => {
   const totalEquityValue = totalEquityBuyValue.value + totalEquitySellValue.value;
   const totalDerivativeValue = totalDerivativeBuyValue.value + totalDerivativeSellValue.value;
 
-  if (selectedBroker.value?.brokerName === 'Flattrade' || selectedBroker.value?.brokerName === 'Shoonya') {
+  if (['Flattrade', 'Shoonya', 'Upstox'].includes(selectedBroker.value?.brokerName)) {
     // Calculate charges for Flattrade and Shoonya (they have the same structure)
     const equityExchangeCharge = Math.round(totalEquityValue * 0.00003485 * 100) / 100; //avage price from both exchange
     const equityIpftCharge = Math.round(totalEquityValue * 0.000001 * 100) / 100;
@@ -510,17 +588,23 @@ const totalBuyValue = computed(() => {
   if (selectedBroker.value?.brokerName === 'Flattrade') {
     return flatTradePositionBook.value.reduce((total, position) => total + parseFloat(position.daybuyamt || 0), 0);
   }
-  if (selectedBroker.value?.brokerName === 'Shoonya') {
+  else if (selectedBroker.value?.brokerName === 'Shoonya') {
     return shoonyaPositionBook.value.reduce((total, position) => total + parseFloat(position.daybuyamt || 0), 0);
-  }
+  } 
+  else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return upstoxPositionBook.value.reduce((total, position) => total + parseFloat(position.day_buy_value || 0), 0);
+  } 
   return 0;
 });
 const totalSellValue = computed(() => {
   if (selectedBroker.value?.brokerName === 'Flattrade') {
     return flatTradePositionBook.value.reduce((total, position) => total + parseFloat(position.daysellamt || 0), 0);
   }
-  if (selectedBroker.value?.brokerName === 'Shoonya') {
+  else if (selectedBroker.value?.brokerName === 'Shoonya') {
     return shoonyaPositionBook.value.reduce((total, position) => total + parseFloat(position.daysellamt || 0), 0);
+  }
+  else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return upstoxPositionBook.value.reduce((total, position) => total + parseFloat(position.day_sell_value || 0), 0);
   }
   return 0;
 });
@@ -532,6 +616,15 @@ const totalEquityBuyValue = computed(() => {
   } else if (selectedBroker.value?.brokerName === 'Shoonya') {
     return shoonyaPositionBook.value
       .filter(position => position.exch === 'BSE' || position.exch === 'NSE')
+      .reduce((total, position) => total + parseFloat(position.daybuyamt || 0), 0);
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return upstoxPositionBook.value
+      .filter(position => 
+        (position.exch === 'BSE' || position.exch === 'NSE') &&
+        !(position.trading_symbol.includes('XX') || 
+          position.trading_symbol.includes('CE') || 
+          position.trading_symbol.includes('PE'))
+      )
       .reduce((total, position) => total + parseFloat(position.daybuyamt || 0), 0);
   }
   return 0;
@@ -545,6 +638,15 @@ const totalEquitySellValue = computed(() => {
     return shoonyaPositionBook.value
       .filter(position => position.exch === 'BSE' || position.exch === 'NSE')
       .reduce((total, position) => total + parseFloat(position.daysellamt || 0), 0);
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return upstoxPositionBook.value
+      .filter(position => 
+        (position.exch === 'BSE' || position.exch === 'NSE') &&
+        !(position.trading_symbol.includes('XX') || 
+          position.trading_symbol.includes('CE') || 
+          position.trading_symbol.includes('PE'))
+      )
+      .reduce((total, position) => total + parseFloat(position.daybuyamt || 0), 0);
   }
   return 0;
 });
@@ -556,6 +658,15 @@ const totalDerivativeBuyValue = computed(() => {
   } else if (selectedBroker.value?.brokerName === 'Shoonya') {
     return shoonyaPositionBook.value
       .filter(position => position.exch === 'BFO' || position.exch === 'NFO')
+      .reduce((total, position) => total + parseFloat(position.daybuyamt || 0), 0);
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return upstoxPositionBook.value
+      .filter(position => 
+        (position.exch === 'BSE' || position.exch === 'NSE') &&
+        (position.trading_symbol.includes('XX') || 
+        position.trading_symbol.includes('CE') || 
+        position.trading_symbol.includes('PE'))
+      )
       .reduce((total, position) => total + parseFloat(position.daybuyamt || 0), 0);
   }
   return 0;
@@ -569,6 +680,15 @@ const totalDerivativeSellValue = computed(() => {
     return shoonyaPositionBook.value
       .filter(position => position.exch === 'BFO' || position.exch === 'NFO')
       .reduce((total, position) => total + parseFloat(position.daysellamt || 0), 0);
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return upstoxPositionBook.value
+      .filter(position => 
+        (position.exch === 'BSE' || position.exch === 'NSE') &&
+        (position.trading_symbol.includes('XX') || 
+        position.trading_symbol.includes('CE') || 
+        position.trading_symbol.includes('PE'))
+      )
+      .reduce((total, position) => total + parseFloat(position.daybuyamt || 0), 0);
   }
   return 0;
 });
@@ -877,7 +997,7 @@ const symbolData = reactive({
   BANKEX: { exchangeCode: 'BSE', exchangeSecurityId: '12', expiryDay: null }, // No specific expiry day
 });
 const updateExchangeSymbols = () => {
-  if (selectedBroker.value?.brokerName === 'Flattrade' || selectedBroker.value?.brokerName === 'Shoonya' || selectedBroker.value?.brokerName === 'PaperTrading') {
+  if (['Flattrade', 'Shoonya', 'Upstox', 'PaperTrading'].includes(selectedBroker.value?.brokerName)) {
     exchangeSymbols.value = {
       NFO: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'],
       BFO: ['SENSEX', 'BANKEX'],
@@ -925,6 +1045,9 @@ const fetchTradingData = async () => {
   } else if (selectedBroker.value?.brokerName === 'Shoonya') {
     response = await fetch(`${BASE_URL}/shoonya/symbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
     // console.log('Shoonya Symbols:', response);
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    response = await fetch(`${BASE_URL}/upstox/symbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
+    // console.log('Upstox Symbols:', response);
   } else if (selectedBroker.value?.brokerName === 'PaperTrading') {
     response = await fetch(`${BASE_URL}/shoonya/symbols?exchangeSymbol=${selectedExchange.value}&masterSymbol=${selectedMasterSymbol.value}`);
     // console.log('Paper Trading Symbols:', response);
@@ -964,7 +1087,7 @@ const formatDate = (dateString) => {
     return ''; // Return empty string if data hasn't been fetched or dateString is null
   }
 
-  if (selectedBroker.value?.brokerName === 'Flattrade' || selectedBroker.value?.brokerName === 'Shoonya' || selectedBroker.value?.brokerName === 'PaperTrading') {
+  if (['Flattrade', 'Shoonya', 'PaperTrading'].includes(selectedBroker.value?.brokerName)) {
     return dateString;
   }
   return dateString;
@@ -979,16 +1102,10 @@ const updateStrikesForExpiry = (expiryDate, forceUpdate = false) => {
 
   let filteredCallStrikes, filteredPutStrikes;
 
-  if (selectedBroker.value?.brokerName === 'Flattrade') {
+  if (['Flattrade', 'Shoonya', 'Upstox', 'PaperTrading'].includes(selectedBroker.value?.brokerName)) {
     filteredCallStrikes = callStrikes.value.filter(strike => strike.expiryDate === expiryDate);
     filteredPutStrikes = putStrikes.value.filter(strike => strike.expiryDate === expiryDate);
-  } else if (selectedBroker.value?.brokerName === 'Shoonya') {
-    filteredCallStrikes = callStrikes.value.filter(strike => strike.expiryDate === expiryDate);
-    filteredPutStrikes = putStrikes.value.filter(strike => strike.expiryDate === expiryDate);
-  } else if (selectedBroker.value?.brokerName === 'PaperTrading') {
-    filteredCallStrikes = callStrikes.value.filter(strike => strike.expiryDate === expiryDate);
-    filteredPutStrikes = putStrikes.value.filter(strike => strike.expiryDate === expiryDate);
-  }
+  } 
 
   // console.log('Filtered Call Strikes:', filteredCallStrikes);
   // console.log('Filtered Put Strikes:', filteredPutStrikes);
@@ -1047,13 +1164,17 @@ const synchronizeStrikes = () => {
 const synchronizeCallStrikes = () => {
   if (selectedPutStrike.value && selectedPutStrike.value.tradingSymbol) {
     let baseSymbol;
-    if (selectedBroker.value?.brokerName === 'Flattrade' || selectedBroker.value?.brokerName === 'Shoonya' || selectedBroker.value?.brokerName === 'PaperTrading') {
-      baseSymbol = selectedPutStrike.value.tradingSymbol.replace(/P\d+$/, '');
+    if (['Flattrade', 'Shoonya', 'Upstox', 'PaperTrading'].includes(selectedBroker.value?.brokerName)) {
+      baseSymbol = selectedPutStrike.value.tradingSymbol.replace(
+        selectedBroker.value?.brokerName === 'Upstox' ? /PE\d+$/ :
+        /P\d+$/, 
+      );
     }
     const matchingCallStrike = callStrikes.value.find(strike =>
       strike.tradingSymbol.startsWith(baseSymbol) &&
-      /C\d+$/.test(strike.tradingSymbol)
+      (selectedBroker.value?.brokerName === 'Upstox' ? /CE\d+$/ : /C\d+$/).test(strike.tradingSymbol)
     );
+
     if (matchingCallStrike) {
       selectedCallStrike.value = matchingCallStrike;
     } else {
@@ -1065,12 +1186,15 @@ const synchronizeCallStrikes = () => {
 const synchronizePutStrikes = () => {
   if (selectedCallStrike.value && selectedCallStrike.value.tradingSymbol) {
     let baseSymbol;
-    if (selectedBroker.value?.brokerName === 'Flattrade' || selectedBroker.value?.brokerName === 'Shoonya' || selectedBroker.value?.brokerName === 'PaperTrading') {
-      baseSymbol = selectedCallStrike.value.tradingSymbol.replace(/C\d+$/, '');
+    if (['Flattrade', 'Shoonya', 'Upstox', 'PaperTrading'].includes(selectedBroker.value?.brokerName)) {
+      baseSymbol = selectedPutStrike.value.tradingSymbol.replace(
+        selectedBroker.value?.brokerName === 'Upstox' ? /CE\d+$/ :
+        /C\d+$/, 
+      );
     }
     const matchingPutStrike = putStrikes.value.find(strike =>
       strike.tradingSymbol.startsWith(baseSymbol) &&
-      /P\d+$/.test(strike.tradingSymbol)
+      (selectedBroker.value?.brokerName === 'Upstox' ? /PE\d+$/ : /P\d+$/).test(strike.tradingSymbol)
     );
     if (matchingPutStrike) {
       selectedPutStrike.value = matchingPutStrike;
@@ -1225,10 +1349,54 @@ const fetchShoonyaOrdersTradesBook = async () => {
     console.error('Error fetching trades:', error);
   }
 };
+const fetchUpstoxOrdersTradesBook = async () => {
+  if (!selectedBroker.value || selectedBroker.value.brokerName !== 'Upstox') {
+    toastMessage.value = 'Upstox broker is not selected.';
+    showToast.value = true;
+    return;
+  }
+
+  const token = localStorage.getItem('UPSTOX_API_TOKEN');
+
+  if (!token) {
+    toastMessage.value = 'Upstox API Token is missing. Please generate a token first.';
+    showToast.value = true;
+    return;
+  }
+
+  try {
+    const response = await axios.get(`${BASE_URL}/upstox/getOrdersAndTrades`, {
+      headers: { 
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    upstoxOrderBook.value = response.data.orderBook;
+    upstoxTradeBook.value = response.data.tradeBook;
+    // console.log('Upstox Order Book:', response.data.orderBook);
+    // console.log('Upstox Trade Book:', response.data.tradeBook);
+  } catch (error) {
+    toastMessage.value = 'Error fetching Upstox orders/trades: ' + error.message;
+    showToast.value = true;
+    console.error('Error fetching Upstox orders/trades:', error);
+  }
+};
 const formatTime = (timeString) => {
   if (!timeString) return '';
 
-  const [time] = timeString.split(' ');
+  let time, date;
+  
+  if (selectedBroker.value?.brokerName === 'Upstox') {
+    // Upstox format: "YYYY-MM-DD HH:mm:ss"
+    [date, time] = timeString.split(' ');
+  } else if (['Flattrade', 'Shoonya'].includes(selectedBroker.value?.brokerName)) {
+    // Flattrade/Shoonya format: "HH:mm:ss DD-MM-YYYY"
+    [time, date] = timeString.split(' ');
+  } else {
+    // Default case: just use the time part
+    [time] = timeString.split(' ');
+  }
+
   const [hours, minutes, seconds] = time.split(':');
 
   let formattedHours = parseInt(hours, 10);
@@ -1236,7 +1404,12 @@ const formatTime = (timeString) => {
   formattedHours = formattedHours % 12 || 12;
 
   const formattedTime = `${formattedHours}:${minutes}:${seconds} ${ampm}`;
-  return `${formattedTime}`;
+  
+  if (date) {
+    return `${formattedTime}`;
+  }
+  
+  return formattedTime;
 };
 const fetchFlattradePositions = async () => {
   let jKey = localStorage.getItem('FLATTRADE_API_TOKEN') || token.value;
@@ -1328,6 +1501,46 @@ const fetchShoonyaPositions = async () => {
     shoonyaPositionBook.value = [];
   }
 };
+const fetchUpstoxPositions = async () => {
+  if (!selectedBroker.value || selectedBroker.value.brokerName !== 'Upstox') {
+    toastMessage.value = 'Upstox broker is not selected.';
+    showToast.value = true;
+    return;
+  }
+
+  const token = localStorage.getItem('UPSTOX_API_TOKEN');
+
+  if (!token) {
+    toastMessage.value = 'Upstox Token is missing. Please generate a token first.';
+    showToast.value = true;
+    return;
+  }
+
+  try {
+    const positionBookRes = await axios.get('https://api.upstox.com/v2/portfolio/short-term-positions', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (Array.isArray(positionBookRes.data.data) && positionBookRes.data.data.length > 0) {
+      upstoxPositionBook.value = positionBookRes.data.data;
+      // console.log('Upstox Position Book:', positionBookRes.data.data);
+      updatePositionSecurityIds();
+      subscribeToOptions();
+      subscribeToPositionLTPs();
+    } else {
+      upstoxPositionBook.value = [];
+      // console.log('No positions in Upstox Position Book');
+    }
+  } catch (error) {
+    console.error('Error fetching Upstox position book:', error);
+    upstoxPositionBook.value = [];
+    toastMessage.value = 'Error fetching Upstox positions: ' + error.message;
+    showToast.value = true;
+  }
+};
 const fetchFundLimit = async () => {
   try {
     if (!selectedBroker.value) {
@@ -1348,6 +1561,7 @@ const fetchFundLimit = async () => {
       });
       fundLimits.value = {
         cash: response.data.cash,
+        payin: response.data.payin,
         marginused: response.data.marginused,
       };
     }
@@ -1365,8 +1579,23 @@ const fetchFundLimit = async () => {
       // Make sure the response data has the correct structure
       fundLimits.value = {
         cash: response.data.cash,
+        payin: response.data.payin,
         marginused: response.data.marginused
         // Add any other relevant fields from the Shoonya response
+      };
+    }
+    else if (selectedBroker.value?.brokerName === 'Upstox') {
+      const UPSTOX_API_TOKEN = localStorage.getItem('UPSTOX_API_TOKEN');
+      response = await axios.get(`${BASE_URL}/upstox/fundLimit`, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${UPSTOX_API_TOKEN}`
+        },
+      });
+      // Make sure the response data has the correct structure
+      fundLimits.value = {
+        cash: response.data.data.data.equity.available_margin,
+        marginused: response.data.data.data.equity.used_margin,
       };
     }
     else if (selectedBroker.value?.brokerName === 'PaperTrading') {
@@ -1388,6 +1617,20 @@ const updateFundLimits = async () => {
   await fetchFundLimit();
   // console.log('Updated Fund Limits:', fundLimits.value);
 };
+const refreshData = async () => {
+   
+   if (selectedBroker.value?.brokerName === 'Flattrade') {
+     await fetchFlattradeOrdersTradesBook();
+     await fetchFlattradePositions();
+   } else if (selectedBroker.value?.brokerName === 'Shoonya') {
+     await fetchShoonyaOrdersTradesBook();
+     await fetchShoonyaPositions();
+   } else if (selectedBroker.value?.brokerName === 'Upstox') {
+     await fetchUpstoxOrdersTradesBook();
+     await fetchUpstoxPositions();
+   }
+ await updateFundLimits();
+};
 const toggleBrokerClientIdVisibility = () => {
   showBrokerClientId.value = !showBrokerClientId.value;
 };
@@ -1396,13 +1639,29 @@ const maskBrokerClientId = (clientId) => {
   if (!clientId) return 'N/A';
   const length = clientId.length;
   if (length <= 2) return clientId;
+  
   const maskLength = Math.max(1, Math.floor(length / 2));
   const startUnmaskedLength = Math.ceil((length - maskLength) / 2);
   const endUnmaskedLength = length - startUnmaskedLength - maskLength;
-  const firstPart = clientId.slice(0, startUnmaskedLength);
-  const lastPart = clientId.slice(-endUnmaskedLength);
-  const middleMask = '*'.repeat(maskLength);
-  return `${firstPart}${middleMask}${lastPart}`;
+  
+  let firstPart = clientId.slice(0, startUnmaskedLength);
+  let lastPart = clientId.slice(-endUnmaskedLength);
+  let middleMask = '*'.repeat(maskLength);
+  
+  let maskedId = `${firstPart}${middleMask}${lastPart}`;
+  
+  if (maskedId.length > 10) {
+    const excessLength = maskedId.length - 10;
+    const halfExcess = Math.ceil(excessLength / 2);
+    
+    firstPart = firstPart.slice(0, Math.max(1, firstPart.length - halfExcess));
+    lastPart = lastPart.slice(-Math.max(1, lastPart.length - (excessLength - halfExcess)));
+    middleMask = '*'.repeat(Math.max(1, 10 - firstPart.length - lastPart.length));
+    
+    maskedId = `${firstPart}${middleMask}${lastPart}`;
+  }
+  
+  return maskedId;
 };
 const setOrderDetails = (transactionType, optionType) => {
   modalTransactionType.value = getTransactionType(transactionType); // Use getTransactionType to set modalTransactionType
@@ -1427,22 +1686,19 @@ const resetOrderType = () => {
   selectedOrderType.value = orderTypes.value[0]; // Set selectedOrderType to MARKET or MKT based on broker
 };
 const getProductTypeValue = (productType) => {
-  if (selectedBroker.value?.brokerName === 'Flattrade') {
+  if (['Flattrade','Shoonya', 'PaperTrading'].includes(selectedBroker.value?.brokerName)) {
     return productType === 'Intraday' ? 'I' : 'M';
   }
-  else if (selectedBroker.value?.brokerName === 'Shoonya') {
-    return productType === 'Intraday' ? 'I' : 'M';
-  }
-  else if (selectedBroker.value?.brokerName === 'PaperTrading') {
-    return productType === 'Intraday' ? 'I' : 'M';
+  else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return productType === 'Intraday' ? 'I' : 'D';
   }
   return productType;
 };
 const getTransactionType = (type) => {
-  if (selectedBroker.value?.brokerName === 'Flattrade') {
+  if (['Flattrade','Shoonya'].includes(selectedBroker.value?.brokerName)) {
     return type === 'BUY' ? 'B' : 'S';
-  } else if (selectedBroker.value?.brokerName === 'Shoonya') {
-    return type === 'BUY' ? 'B' : 'S';
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return type === 'BUY' ? 'BUY' : 'SELL';
   }
   return type;
 };
@@ -1451,7 +1707,7 @@ const getExchangeSegment = () => {
     throw new Error("Broker or exchange not selected");
   }
 
-  if (selectedBroker.value?.brokerName === 'Flattrade') {
+  if (['Flattrade', 'Shoonya'].includes(selectedBroker.value.brokerName)) {
     if (selectedExchange.value === 'NFO') {
       return 'NFO';
     } else if (selectedExchange.value === 'BFO') {
@@ -1460,11 +1716,11 @@ const getExchangeSegment = () => {
       throw new Error("Selected exchange is not valid for Flattrade");
     }
   }
-  else if (selectedBroker.value?.brokerName === 'Shoonya') {
+  else if (selectedBroker.value?.brokerName === 'Upstox') {
     if (selectedExchange.value === 'NFO') {
-      return 'NFO';
+      return 'NSE_FO';
     } else if (selectedExchange.value === 'BFO') {
-      return 'BFO';
+      return 'BSE_FO';
     } else {
       throw new Error("Selected exchange is not valid for Shoonya");
     }
@@ -1483,7 +1739,7 @@ const getExchangeSegment = () => {
   }
 };
 const prepareOrderPayload = (transactionType, drvOptionType, selectedStrike, exchangeSegment) => {
-  if (selectedBroker.value?.brokerName === 'Flattrade') {
+  if (['Flattrade', 'Shoonya'].includes(selectedBroker.value?.brokerName)) {
     return {
       uid: selectedBroker.value.brokerClientId,
       actid: selectedBroker.value.brokerClientId,
@@ -1497,18 +1753,18 @@ const prepareOrderPayload = (transactionType, drvOptionType, selectedStrike, exc
       ret: "DAY"
       // Add any additional fields specific to Flattrade here
     };
-  } else if (selectedBroker.value?.brokerName === 'Shoonya') {
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
     return {
-      uid: selectedBroker.value.brokerClientId,
-      actid: selectedBroker.value.brokerClientId,
-      exch: exchangeSegment,
-      tsym: selectedStrike.tradingSymbol,
-      qty: selectedQuantity.value,
-      prc: selectedOrderType.value === 'LMT' ? limitPrice.value : 0,
-      prd: selectedProductType.value,
-      trantype: transactionType,
-      prctyp: selectedOrderType.value,
-      ret: "DAY"
+      quantity: parseInt(selectedQuantity.value),
+      product: selectedProductType.value === 'Intraday' ? 'I' : 'D',
+      validity: "DAY",
+      price: selectedOrderType.value === 'LIMIT' ? parseFloat(limitPrice.value) : 0,
+      instrument_token: selectedStrike.tradingSymbol,
+      order_type: selectedOrderType.value.toUpperCase(),
+      transaction_type: transactionType.toUpperCase(),
+      disclosed_quantity: 0,
+      trigger_price: selectedOrderType.value.startsWith('SL') ? parseFloat(triggerPrice.value) : 0,
+      is_amo: false
     };
   } else {
     throw new Error("Unsupported broker");
@@ -1516,7 +1772,7 @@ const prepareOrderPayload = (transactionType, drvOptionType, selectedStrike, exc
 };
 const getOrderMargin = async () => {
   try {
-    if (!['Flattrade', 'Shoonya'].includes(selectedBroker.value?.brokerName)) {
+    if (!['Flattrade', 'Shoonya', 'Upstox'].includes(selectedBroker.value?.brokerName)) {
       throw new Error('Order margin calculation is only available for Flattrade and Shoonya');
     }
 
@@ -1563,26 +1819,64 @@ const getOrderMargin = async () => {
           // Add any additional fields required by Shoonya
         };
         endpoint = `${BASE_URL}/shoonya/getOrderMargin`;
+      } else if (selectedBroker.value.brokerName === 'Upstox') {
+          orderData = {
+            instrument_key: strike.instrumentToken,
+            quantity: selectedQuantity.value.toString(),
+            product: selectedProductType.value,
+            transaction_type: getTransactionType('BUY'),
+            price: selectedOrderType.value === 'LIMIT' ? limitPrice.value.toString() : "0",
+          // Add any additional fields required by Shoonya
+        };
+        endpoint = `${BASE_URL}/upstox/getOrderMargin`;
       }
 
       if (!orderData.exch || !orderData.qty || !orderData.tsym) {
         return;
       }
-      const jData = JSON.stringify(orderData);
-      const payload = `jKey=${API_TOKEN}&jData=${jData}`;
+      if (['Flattrade', 'Shoonya'].includes(selectedBroker.value?.brokerName)) {
+        const jData = JSON.stringify(orderData);
+        const payload = `jKey=${API_TOKEN}&jData=${jData}`;
 
-      const response = await axios.post(endpoint, payload, {
-        headers: {
-          'Authorization': `Bearer ${API_TOKEN}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
+        const response = await axios.post(endpoint, payload, {
+          headers: {
+            'Authorization': `Bearer ${API_TOKEN}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        });
+      
+        if (response.data.stat === 'Ok') {
+          // console.log(`Order margin for ${type}:`, response.data);
+          return response.data.marginused;
+        } else {
+          throw new Error(response.data.emsg || `Failed to get order margin for ${type}`);
         }
-      });
-
-      if (response.data.stat === 'Ok') {
-        // console.log(`Order margin for ${type}:`, response.data);
-        return response.data.marginused;
-      } else {
-        throw new Error(response.data.emsg || `Failed to get order margin for ${type}`);
+      }
+      else if (selectedBroker.value?.brokerName === 'Upstox') {
+        const response = await axios.post(endpoint, orderData, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${API_TOKEN}`,
+          }
+        });
+      
+        if (response.data.stat === 'Ok') {
+          // console.log(`Order margin for ${type}:`, response.data);
+          return response.data.marginused;
+        } else {
+          const errorData = error.response.data;
+          statusCode = errorData.status || error.response.status;
+          statusText = errorData.statusText || error.response.statusText;
+          errorMessage = errorData.details || errorData.message || errorMessage;
+          console.error("Error placing order:", {
+            status: statusCode,
+            statusText: statusText,
+            details: errorMessage,
+            fullError: errorData
+          });
+          return;
+        }
       }
     };
 
@@ -1665,6 +1959,17 @@ const placeOrder = async (transactionType, drvOptionType) => {
           }
         });
       }
+      else if (selectedBroker.value?.brokerName === 'Upstox') {
+        const UPSTOX_API_TOKEN = localStorage.getItem('UPSTOX_API_TOKEN');
+
+        response = await axios.post(`${BASE_URL}/upstox/placeOrder`, orderData, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${UPSTOX_API_TOKEN}`,
+          }
+        });
+      }
 
       console.log(`Placed order for ${lotsToPlace} lots (${quantityToPlace} quantity)`); // placed here to prevent delay and debugging if required
       console.log("Order placed successfully:", response.data); // Log the response data for debugging if required
@@ -1679,11 +1984,8 @@ const placeOrder = async (transactionType, drvOptionType) => {
     // Add a delay before fetching updated data
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Update both orders and positions
-    await updateOrdersAndPositions();
-
-    // Update fund limits
-    await updateFundLimits()
+    // Update orders, positions, and Funds
+    await refreshData();
 
   } catch (error) {
     console.error("Error placing order:", error); // Log the full error
@@ -1696,24 +1998,13 @@ const placeOrder = async (transactionType, drvOptionType) => {
     showToast.value = true;
   }
 };
-const updateOrdersAndPositions = async () => {
-  if (selectedBroker.value?.brokerName === 'Flattrade') {
-    await Promise.all([
-      fetchFlattradeOrdersTradesBook(),
-      fetchFlattradePositions()
-    ]);
-  } else if (selectedBroker.value?.brokerName === 'Shoonya') {
-    await Promise.all([
-      fetchShoonyaOrdersTradesBook(),
-      fetchShoonyaPositions()
-    ]);
-  }
-};
 const findNewPosition = (tradingSymbol) => {
   if (selectedBroker.value?.brokerName === 'Flattrade') {
     return flatTradePositionBook.value.find(p => p.tsym === tradingSymbol);
   } else if (selectedBroker.value?.brokerName === 'Shoonya') {
     return shoonyaPositionBook.value.find(p => p.tsym === tradingSymbol);
+  } else if (selectedBroker.value?.brokerName === 'Upstox') {
+    return upstoxPositionBook.value.find(p => p.trading_symbol === tradingSymbol);
   }
   return null;
 };
@@ -1739,7 +2030,7 @@ const placeOrderForPosition = async (transactionType, optionType, position) => {
         orderData = {
           uid: selectedBroker.value.clientId,
           actid: selectedBroker.value.clientId,
-          exch: selectedExchange.value === 'NFO' ? 'NFO' : 'BFO',
+          exch: position.exch,
           tsym: position.tsym,
           qty: quantityToPlace.toString(),
           prc: "0",
@@ -1747,6 +2038,19 @@ const placeOrderForPosition = async (transactionType, optionType, position) => {
           trantype: transactionType,
           prctyp: 'MKT',
           ret: "DAY"
+        };
+      } else if (selectedBroker.value?.brokerName === 'Upstox') {
+        orderData = {
+          quantity: parseInt(quantityToPlace),
+          product: position.product,
+          validity: "DAY",
+          price: 0,
+          instrument_token: position.instrument_token,
+          order_type: 'MARKET',
+          transaction_type: transactionType,
+          disclosed_quantity: 0,
+          trigger_price: 0,
+          is_amo: false
         };
       }
 
@@ -1771,6 +2075,17 @@ const placeOrderForPosition = async (transactionType, optionType, position) => {
           }
         });
       }
+      else if (selectedBroker.value?.brokerName === 'Upstox') {
+        const token = localStorage.getItem('UPSTOX_API_TOKEN');
+        
+        response = await axios.post(`${BASE_URL}/upstox/placeOrder`, orderData, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          }
+        });
+      }
 
       console.log(`Placed order for ${quantityToPlace} quantity`);
 
@@ -1785,11 +2100,8 @@ const placeOrderForPosition = async (transactionType, optionType, position) => {
     // Add a delay before fetching updated data
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Update both orders and positions
-    await updateOrdersAndPositions();
-
-    // Update fund limits
-    await updateFundLimits()
+    // Update both orders, positions, and funds
+    await refreshData();
 
   } catch (error) {
     console.error('Failed to place order for position:', error);
@@ -1978,7 +2290,11 @@ const addToBasket = (transactionType, optionType, strikeOffset = 0, contracts = 
     quantity: selectedQuantity.value * contracts,
     productType: selectedProductType.value,
     orderType: selectedOrderType.value,
-    price: limitPrice.value
+    price: limitPrice.value,
+    exchangeSegment: getExchangeSegment(),
+    ...(selectedBroker.value?.brokerName === 'Upstox' && {
+      instrument_key: selectedStrike.instrument_key,
+    })
   });
 };
 const updateBasketOrderQuantity = (order) => {
@@ -2011,23 +2327,28 @@ const placeBasket = async (basketId) => {
   await new Promise(resolve => setTimeout(resolve, 1000));
 
   // Update both orders and positions
-  await updateOrdersAndPositions();
-
-  // Update fund limits
-  await updateFundLimits();
+  await refreshData();
 
   toastMessage.value = `Basket "${basket.name}" orders placed successfully`;
   showToast.value = true;
 };
 const placeBasketOrder = async (order) => {
   try {
-    const exchangeSegment = getExchangeSegment();
-    const orderData = prepareOrderPayload(order.transactionType, order.optionType, { tradingSymbol: order.tradingSymbol }, exchangeSegment);
-    orderData.qty = order.quantity.toString();
-    orderData.prd = order.productType;
-    orderData.prctyp = order.orderType;
-    orderData.prc = order.orderType === 'LMT' ? order.price.toString() : "0";
-
+    const orderData = prepareOrderPayload(order.transactionType, order.optionType, { tradingSymbol: order.tradingSymbol });
+    if (['Flattrade', 'Shoonya'].includes(selectedBroker.value?.brokerName)){
+      orderData.qty = order.quantity.toString();
+      orderData.prd = order.productType;
+      orderData.prctyp = order.orderType;
+      orderData.prc = order.orderType === 'LMT' ? order.price.toString() : "0";
+      orderData.exch = order.exchangeSegment;
+    }
+    else if (selectedBroker.value?.brokerName === 'Upstox'){
+      orderData.quantity = order.quantity.toString();
+      orderData.product = order.productType;
+      orderData.order_type = order.orderType;
+      orderData.price = order.orderType === 'LMT' ? order.price.toString() : "0";
+      orderData.instrument_key = order.instrument_key;
+    }
     let response;
     if (selectedBroker.value?.brokerName === 'Flattrade') {
       const FLATTRADE_API_TOKEN = localStorage.getItem('FLATTRADE_API_TOKEN');
@@ -2057,6 +2378,15 @@ const placeBasketOrder = async (order) => {
         }
       });
     }
+    else if (selectedBroker.value?.brokerName === 'Upstox') {
+      const UPSTOX_API_TOKEN = localStorage.getItem('UPSTOX_API_TOKEN');
+      response = await axios.post(`${BASE_URL}/shoonya/placeOrder`, orderData, {
+        headers: {
+          'Authorization': `Bearer ${SHOONYA_API_TOKEN}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+    }
 
     console.log(`Placed basket order for ${order.tradingSymbol}`);
     console.log("Basket order placed successfully:", response.data);
@@ -2064,11 +2394,8 @@ const placeBasketOrder = async (order) => {
     // Add a delay before fetching updated data
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Update both orders and positions
-    await updateOrdersAndPositions();
-
-    // Update fund limits
-    await updateFundLimits();
+    // Update both orders, positions, and funds
+    await refreshData();
 
     return true;
   } catch (error) {
@@ -2096,11 +2423,8 @@ const placeAllBasketOrders = async () => {
   // Add a delay before fetching updated data
   await new Promise(resolve => setTimeout(resolve, 1000));
 
-  // Update both orders and positions
-  await updateOrdersAndPositions();
-
-  // Update fund limits
-  await updateFundLimits();
+  // Update both orders, positions, and funds
+  await refreshData();
 
   savedBaskets.value.push(executedBasket);
   localStorage.setItem('savedBaskets', JSON.stringify(savedBaskets.value));
@@ -2134,7 +2458,8 @@ const closeAllPositions = async () => {
           positionsClosed = true;
         }
       }
-    } else if (selectedBroker.value?.brokerName === 'Shoonya') {
+    }
+    else if (selectedBroker.value?.brokerName === 'Shoonya') {
       const sortedPositions = [...shoonyaPositionBook.value].sort((a, b) => Number(b.netqty) - Number(a.netqty));
       for (const position of sortedPositions) {
         const netqty = Number(position.netqty);
@@ -2146,15 +2471,24 @@ const closeAllPositions = async () => {
         }
       }
     }
+    else if (selectedBroker.value?.brokerName === 'Upstox') {
+      const sortedPositions = [...upstoxPositionBook.value].sort((a, b) => Number(b.quantity) - Number(a.quantity));
+      for (const position of sortedPositions) {
+        const netqty = Number(position.quantity);
+        if (netqty !== 0) {
+          const transactionType = netqty > 0 ? 'SELL' : 'BULL';
+          const optionType = position.tsym.includes('C') ? 'CALL' : 'PUT';
+          await placeOrderForPosition(transactionType, optionType, position);
+          positionsClosed = true;
+        }
+      }
+    }
 
     // Add a delay before fetching updated data
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Update both orders and positions
-    await updateOrdersAndPositions();
-
-    // Update fund limits
-    await updateFundLimits()
+    // Update both orders, positions, and funds
+    await refreshData();
 
     if (positionsClosed) {
       toastMessage.value = `All ${selectedBroker.value?.brokerName} positions closed successfully`;
@@ -2189,7 +2523,8 @@ const closeSelectedPositions = async () => {
           selectedShoonyaPositionsSet.value.delete(tsym);
         }
       }
-    } else if (selectedBroker.value?.brokerName === 'Flattrade') {
+    } 
+    else if (selectedBroker.value?.brokerName === 'Flattrade') {
       // Create a copy of the selected positions to iterate over
       const positionsToClose = [...selectedFlattradePositionsSet.value];
 
@@ -2207,15 +2542,30 @@ const closeSelectedPositions = async () => {
         }
       }
     }
+    else if (selectedBroker.value?.brokerName === 'Upstox') {
+      // Create a copy of the selected positions to iterate over
+      const positionsToClose = [...selectedUpstoxPositionsSet.value];
+
+      for (const tsym of positionsToClose) {
+        const position = upstoxPositionBook.value.find(p => p.trading_symbol === tsym);
+        const netqty = Number(position.quantity);
+        if (netqty !== 0) {
+          const transactionType = netqty > 0 ? 'SELL' : 'BUY';
+          const optionType = position.tsym.includes('C') ? 'CALL' : 'PUT';
+          await placeOrderForPosition(transactionType, optionType, position);
+          positionsClosed = true;
+
+          // Remove the closed position from the selected positions
+          selectedFlattradePositionsSet.value.delete(tsym);
+        }
+      }
+    }
 
     // Add a delay before fetching updated data
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Update both orders and positions
-    await updateOrdersAndPositions();
-
-    // Update fund limits
-    await updateFundLimits();
+    // Update both orders, positions, and funds
+    await refreshData();
 
     if (positionsClosed) {
       toastMessage.value = `Selected positions closed successfully`;
@@ -2238,34 +2588,39 @@ const reversePositions = async () => {
     let positionsToReverse;
 
     if (reverseMode.value === 'all') {
-      positionsToReverse = [...flatTradePositionBook.value, ...shoonyaPositionBook.value];
+      positionsToReverse = [...flatTradePositionBook.value, ...shoonyaPositionBook.value, ...upstoxPositionBook.value];
     } else {
-      positionsToReverse = [...selectedFlattradePositionsSet.value, ...selectedShoonyaPositionsSet.value]
-        .map(tsym => [...flatTradePositionBook.value, ...shoonyaPositionBook.value]
-          .find(p => p.tsym === tsym))
+      positionsToReverse = [...selectedFlattradePositionsSet.value, ...selectedShoonyaPositionsSet.value, ...upstoxPositionBook.value]
+        .map(tsym => [...flatTradePositionBook.value, ...shoonyaPositionBook.value, ...upstoxPositionBook.value]
+          .find(p => p.tsym === tsym || p.trading_symbol === tsym))
         .filter(Boolean);
     }
 
     for (const position of positionsToReverse) {
       const netqty = Number(position.netqty);
       if (netqty !== 0) {
-        // Close the current position
-        const closeTransactionType = netqty > 0 ? 'S' : 'B';
-        await placeOrderForPosition(closeTransactionType, position.tsym.includes('C') ? 'CALL' : 'PUT', position);
+        // Determine the transaction type for closing and opening positions
+        const transactionType = getTransactionType(netqty > 0 ? 'S' : 'B');
+        const optionType = position.tsym.includes('C') ? 'CALL' : 'PUT';
 
-        // Open a new position in the opposite direction
-        const openTransactionType = netqty > 0 ? 'B' : 'S';
-        const reversedPosition = { ...position, netqty: Math.abs(netqty) }; // Always use positive quantity
-        await placeOrderForPosition(openTransactionType, position.tsym.includes('C') ? 'CALL' : 'PUT', reversedPosition);
+        // Close the current position
+        await placeOrderForPosition(transactionType, optionType, position);
+
+        // Open a new position in the opposite direction with positive quantity
+        await placeOrderForPosition(transactionType, optionType, position);
 
         positionsReversed = true;
 
         // Remove the reversed position from the selected positions if in 'selected' mode
         if (reverseMode.value === 'selected') {
-          if (selectedBroker.value?.brokerName === 'Shoonya') {
+          const brokerName = selectedBroker.value?.brokerName;
+          if (brokerName === 'Shoonya') {
             selectedShoonyaPositionsSet.value.delete(position.tsym);
-          } else if (selectedBroker.value?.brokerName === 'Flattrade') {
+          } else if (brokerName === 'Flattrade') {
             selectedFlattradePositionsSet.value.delete(position.tsym);
+          }
+          else if (brokerName === 'Upstox') {
+            selectedUpstoxPositionsSet.value.delete(position.tsym);
           }
         }
       }
@@ -2274,11 +2629,8 @@ const reversePositions = async () => {
     // Add a delay before fetching updated data
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Update both orders and positions
-    await updateOrdersAndPositions();
-
-    // Update fund limits
-    await updateFundLimits();
+    // Update both orders, positions, and funds
+    await refreshData();
 
     if (positionsReversed) {
       toastMessage.value = `${reverseMode.value === 'all' ? 'All' : 'Selected'} positions reversed successfully`;
@@ -2509,6 +2861,44 @@ const setShoonyaCredentials = async () => {
     showToast.value = true;
   }
 };
+const setUpstoxCredentials = async () => {
+  try {
+    if (!selectedBroker.value || selectedBroker.value?.brokerName !== 'Upstox') {
+      toastMessage.value = 'Realtime LTP data only available for Upstox';
+      showToast.value = true;
+      return;
+    }
+
+    // Check if the broker status is 'Connected'
+    if (brokerStatus.value !== 'Connected') {
+      console.error('Upstox broker is not connected');
+      toastMessage.value = 'Upstox broker is not connected';
+      showToast.value = true;
+      return;
+    }
+
+    const clientId = selectedBroker.value.clientId;
+    const apiToken = localStorage.getItem('UPSTOX_API_TOKEN');
+
+    if (!clientId || !apiToken) {
+      console.error('Upstox client ID or API token is missing');
+      toastMessage.value = 'Upstox credentials are missing';
+      showToast.value = true;
+      return;
+    }
+
+    const response = await axios.post(`${BASE_URL}/upstox/setCredentials`, {
+      accessToken: apiToken,
+    });
+    // console.log('Credentials set successfully:', response.data);
+    toastMessage.value = 'Upstox changes set successfully';
+    showToast.value = true;
+  } catch (error) {
+    console.error('Error setting credentials: ', error);
+    toastMessage.value = 'Failed to set Upstox credentials';
+    showToast.value = true;
+  }
+};
 const setPaperTradingCredentials = async () => {
   try {
     if (!selectedBroker.value || selectedBroker.value?.brokerName !== 'PaperTrading') {
@@ -2566,6 +2956,8 @@ const connectWebSocket = () => {
     websocketUrl = 'ws://localhost:8765';
   } else if (selectedBroker.value?.brokerName === 'Shoonya' && brokerStatus.value === 'Connected') {
     websocketUrl = 'ws://localhost:8766';
+  } else if (selectedBroker.value?.brokerName === 'Upstox' && brokerStatus.value === 'Connected') {
+    websocketUrl = 'ws://localhost:8767';
   } else if (selectedBroker.value?.brokerName === 'PaperTrading' && brokerStatus.value === 'Connected') {
     // Get the selected broker for paper trading
     const selectedPaperBroker = JSON.parse(localStorage.getItem('selectedBrokerForPaper') || '{}');
@@ -2584,64 +2976,9 @@ const connectWebSocket = () => {
 
   socket.value.onmessage = (event) => {
     const quoteData = JSON.parse(event.data);
-    if (quoteData.lp) {
-      const symbolInfo = exchangeSymbols.value.symbolData[selectedMasterSymbol.value];
-      if (symbolInfo && quoteData.tk === symbolInfo.exchangeSecurityId) {
-        // Update the price for the selected master symbol
-        switch (selectedMasterSymbol.value) {
-          case 'NIFTY':
-            niftyPrice.value = quoteData.lp;
-            updateOHLCIfNotEmpty('master', quoteData);
-            break;
-          case 'BANKNIFTY':
-            bankNiftyPrice.value = quoteData.lp;
-            updateOHLCIfNotEmpty('master', quoteData);
-            break;
-          case 'FINNIFTY':
-            finniftyPrice.value = quoteData.lp;
-            updateOHLCIfNotEmpty('master', quoteData);
-            break;
-          case 'MIDCPNIFTY':
-            midcpniftyPrice.value = quoteData.lp;
-            updateOHLCIfNotEmpty('master', quoteData);
-            break;
-          case 'SENSEX':
-            sensexPrice.value = quoteData.lp;
-            updateOHLCIfNotEmpty('master', quoteData);
-            break;
-          case 'BANKEX':
-            bankexPrice.value = quoteData.lp;
-            updateOHLCIfNotEmpty('master', quoteData);
-            break;
-        }
-      }
-      else if (quoteData.tk === defaultCallSecurityId.value) {
-        latestCallLTP.value = quoteData.lp;
-        updateOHLCIfNotEmpty('call', quoteData);
-      } else if (quoteData.tk === defaultPutSecurityId.value) {
-        latestPutLTP.value = quoteData.lp;
-        updateOHLCIfNotEmpty('put', quoteData);
-      }
-
-      // Update position LTPs
-      const positionTsym = Object.keys(positionSecurityIds.value).find(tsym => positionSecurityIds.value[tsym] === quoteData.tk);
-      if (positionTsym) {
-        positionLTPs.value[positionTsym] = quoteData.lp;
-      }
-      // Handle additional strike LTPs
-      if (ltpCallbacks.value[quoteData.tk]) {
-        ltpCallbacks.value[quoteData.tk](quoteData);
-      }
-    }
-
+    processMarketData(quoteData);
     // Handle depth feed
-    if (quoteData.tk === defaultCallSecurityId.value) {
-      // console.log('Updating call depth:', quoteData);
-      callDepth.value = { ...callDepth.value, ...quoteData };
-    } else if (quoteData.tk === defaultPutSecurityId.value) {
-      // console.log('Updating put depth:', quoteData);
-      putDepth.value = { ...putDepth.value, ...quoteData };
-    }
+    handleDepthFeed(quoteData);
   };
 
   socket.value.onerror = (error) => {
@@ -2659,7 +2996,7 @@ const connectWebSocket = () => {
   };
 };
 // Helper function to update OHLC values if they are not empty
-const updateOHLCIfNotEmpty = (type, data) => {
+const updateOHLCIfNotEmptyUpstoxFlattradeShoonya = (type, data) => {
   if (type === 'master') {
     if (data.o) masterOpenPrice.value = data.o;
     if (data.h) masterHighPrice.value = data.h;
@@ -2679,24 +3016,205 @@ const updateOHLCIfNotEmpty = (type, data) => {
 };
 const currentSubscriptions = ref({
   masterSymbol: null,
+  masterSymbolExchangeCode: null,
+  masterSymbolSecurityId: null,
   callOption: null,
-  putOption: null
+  callOptionExchange: null,
+  putOption: null,
+  putOptionExchange: null
 });
+const processMarketData = (data) => {
+  const isUpstox = selectedBroker.value?.brokerName === 'Upstox' || 
+                   (selectedBroker.value?.brokerName === 'PaperTrading' && 
+                    JSON.parse(localStorage.getItem('selectedBrokerForPaper') || '{}').brokerName === 'Upstox');
+
+  if (isUpstox) {
+    processUpstoxMarketData(data);
+  } else {
+    processFlattradeShoonya(data);
+  }
+};
+const processUpstoxMarketData = (data) => {
+  if (data.type === 'live_feed' && data.feeds) {
+    Object.entries(data.feeds).forEach(([symbol, feed]) => {
+      if (feed.ff?.indexFF?.ltpc) {
+        // Index data
+        const ltp = feed.ff.indexFF.ltpc.ltp;
+        updatePrice(symbol, ltp);
+        updateOHLCIfNotEmptyUpstox('master', feed.ff.indexFF.marketOHLC?.ohlc[0]);
+      } else if (feed.ff?.marketFF?.ltpc) {
+        // Option data
+        const ltp = feed.ff.marketFF.ltpc.ltp;
+        const [exchange, securityId] = symbol.split('|');
+        const symbolInfo = exchangeSymbols.value.symbolData[selectedMasterSymbol.value];
+        
+        if (symbolInfo && securityId === symbolInfo.exchangeSecurityId) {
+          updatePrice(`${symbolInfo.exchangeCode}|${symbolInfo.exchangeSecurityId}`, ltp);
+          updateOHLCIfNotEmptyUpstox('master', feed.ff.marketFF.marketOHLC?.ohlc[0]);
+        } else if (securityId === defaultCallSecurityId.value) {
+          latestCallLTP.value = ltp;
+          updateOHLCIfNotEmptyUpstox('call', feed.ff.marketFF.marketOHLC?.ohlc[0]);
+        } else if (securityId === defaultPutSecurityId.value) {
+          latestPutLTP.value = ltp;
+          updateOHLCIfNotEmptyUpstox('put', feed.ff.marketFF.marketOHLC?.ohlc[0]);
+        } else {
+          // Handle additional strikes
+          updateAdditionalStrikeLTP({ tk: securityId, lp: ltp });
+        }
+        updatePositionLTPs({ tk: securityId, lp: ltp });
+      }
+    });
+  }
+};
+const updateOHLCIfNotEmptyUpstox = (type, data) => {
+  if (!data) return;
+  
+  if (type === 'master') {
+    if (data.open) masterOpenPrice.value = data.open;
+    if (data.high) masterHighPrice.value = data.high;
+    if (data.low) masterLowPrice.value = data.low;
+    if (data.close) masterClosePrice.value = data.close;
+  } else if (type === 'call') {
+    if (data.open) callOpenPrice.value = data.open;
+    if (data.high) callHighPrice.value = data.high;
+    if (data.low) callLowPrice.value = data.low;
+    if (data.close) callClosePrice.value = data.close;
+  } else if (type === 'put') {
+    if (data.open) putOpenPrice.value = data.open;
+    if (data.high) putHighPrice.value = data.high;
+    if (data.low) putLowPrice.value = data.low;
+    if (data.close) putClosePrice.value = data.close;
+  }
+};
+
+const processFlattradeShoonya = (quoteData) => {
+  if (quoteData.lp) {
+    const symbolInfo = exchangeSymbols.value.symbolData[selectedMasterSymbol.value];
+    if (symbolInfo && quoteData.tk === symbolInfo.exchangeSecurityId) {
+      updatePrice(`${symbolInfo.exchangeCode}|${symbolInfo.exchangeSecurityId}`, quoteData.lp);
+      updateOHLCIfNotEmptyUpstoxFlattradeShoonya('master', quoteData);
+    } else if (quoteData.tk === defaultCallSecurityId.value) {
+      latestCallLTP.value = quoteData.lp;
+      updateOHLCIfNotEmptyUpstoxFlattradeShoonya('call', quoteData);
+    } else if (quoteData.tk === defaultPutSecurityId.value) {
+      latestPutLTP.value = quoteData.lp;
+      updateOHLCIfNotEmptyUpstoxFlattradeShoonya('put', quoteData);
+    } else {
+      // Handle additional strikes
+      updateAdditionalStrikeLTP(quoteData);
+    }
+    updatePositionLTPs(quoteData);
+  }
+};
+
+const updatePrice = (symbol, ltp) => {
+  const isUpstox = selectedBroker.value?.brokerName === 'Upstox' || 
+                   (selectedBroker.value?.brokerName === 'PaperTrading' && 
+                    JSON.parse(localStorage.getItem('selectedBrokerForPaper') || '{}').brokerName === 'Upstox');
+
+  if (isUpstox) {
+    if (symbol === 'NSE_INDEX|Nifty 50') {
+      niftyPrice.value = ltp;
+    } else if (symbol === 'NSE_INDEX|Nifty Bank') {
+      bankNiftyPrice.value = ltp;
+    } else if (symbol === 'NSE_INDEX|Nifty Fin Service') {
+      finniftyPrice.value = ltp;
+    } else if (symbol === 'NSE_INDEX|NIFTY MID SELECT') {
+      midcpniftyPrice.value = ltp;
+    } else if (symbol === 'BSE_INDEX|SENSEX') {
+      sensexPrice.value = ltp;
+    } else if (symbol === 'BSE_INDEX|BANKEX') {
+      bankexPrice.value = ltp;
+    }
+  } else {
+    // For Flattrade/Shoonya
+    if (symbol === 'NSE|26000') {
+      niftyPrice.value = ltp;
+    } else if (symbol === 'NSE|26009') {
+      bankNiftyPrice.value = ltp;
+    } else if (symbol === 'NSE|26037') {
+      finniftyPrice.value = ltp;
+    } else if (symbol === 'NSE|26074') {
+      midcpniftyPrice.value = ltp;
+    } else if (symbol === 'BSE|1') {
+      sensexPrice.value = ltp;
+    } else if (symbol === 'BSE|23') {
+      bankexPrice.value = ltp;
+    }
+  }
+};
+const updatePositionLTPs = (quoteData) => {
+  const positionTsym = Object.keys(positionSecurityIds.value).find(tsym => positionSecurityIds.value[tsym] === quoteData.tk);
+  if (positionTsym) {
+    positionLTPs.value[positionTsym] = quoteData.lp;
+  }
+};
+
+const handleDepthFeed = (quoteData) => {
+  if (quoteData.tk === defaultCallSecurityId.value) {
+    callDepth.value = { ...callDepth.value, ...quoteData };
+  } else if (quoteData.tk === defaultPutSecurityId.value) {
+    putDepth.value = { ...putDepth.value, ...quoteData };
+  }
+};
+
+const getUpstoxSymbol = (masterSymbol) => {
+  switch (masterSymbol) {
+    case 'NIFTY': return 'NSE_INDEX|Nifty 50';
+    case 'BANKNIFTY': return 'NSE_INDEX|Nifty Bank';
+    case 'FINNIFTY': return 'NSE_INDEX|Nifty Fin Service';
+    case 'MIDCPNIFTY': return 'NSE_INDEX|NIFTY MID SELECT';
+    case 'SENSEX': return 'BSE_INDEX|SENSEX';
+    case 'BANKEX': return 'BSE_INDEX|BANKEX';
+    default: return null;
+  }
+};
 const subscribeToMasterSymbol = () => {
   if (socket.value && socket.value.readyState === WebSocket.OPEN) {
     const symbolInfo = exchangeSymbols.value.symbolData[selectedMasterSymbol.value];
     if (symbolInfo) {
-      const symbolToSubscribe = `${symbolInfo.exchangeCode}|${symbolInfo.exchangeSecurityId}`;
+      let symbolToSubscribe;
+      
+      if (selectedBroker.value?.brokerName === 'Upstox') {
+        // Format the symbol for Upstox
+        switch (selectedMasterSymbol.value) {
+          case 'NIFTY':
+            symbolToSubscribe = 'NSE_INDEX|Nifty 50';
+            break;
+          case 'BANKNIFTY':
+            symbolToSubscribe = 'NSE_INDEX|Nifty Bank';
+            break;
+          case 'FINNIFTY':
+            symbolToSubscribe = 'NSE_INDEX|Nifty Fin Service';
+            break;
+          case 'MIDCPNIFTY':
+            symbolToSubscribe = 'NSE_INDEX|NIFTY MID SELECT';
+            break;
+          case 'SENSEX':
+            symbolToSubscribe = 'BSE_INDEX|SENSEX';
+            break;
+          case 'BANKEX':
+            symbolToSubscribe = 'BSE_INDEX|BANKEX';
+            break;
+          default:
+            console.error('Unknown master symbol for Upstox:', selectedMasterSymbol.value);
+            return;
+        }
+      } else if (selectedBroker.value?.brokerName === 'Flattrade' || selectedBroker.value?.brokerName === 'Shoonya') {
+        // Use the existing format for Flattrade and Shoonya
+        symbolToSubscribe = `${symbolInfo.exchangeCode}|${symbolInfo.exchangeSecurityId}`;
+      }
+
       if (symbolToSubscribe !== `${currentSubscriptions.value.masterSymbolExchangeCode}|${currentSubscriptions.value.masterSymbolSecurityId}`) {
         const data = {
           action: 'subscribe',
           symbols: [symbolToSubscribe]
         };
-        // console.log('Sending master symbol subscribe data:', data);
+        //  console.log('Sending master symbol subscribe data:', data);
         socket.value.send(JSON.stringify(data));
         currentSubscriptions.value.masterSymbol = selectedMasterSymbol.value;
-        currentSubscriptions.value.masterSymbolExchangeCode = symbolInfo.exchangeCode;
-        currentSubscriptions.value.masterSymbolSecurityId = symbolInfo.exchangeSecurityId;
+        currentSubscriptions.value.masterSymbolExchangeCode = symbolToSubscribe.split('|')[0];
+        currentSubscriptions.value.masterSymbolSecurityId = symbolToSubscribe.split('|')[1];
       }
     }
   }
@@ -2709,9 +3227,13 @@ const subscribeToOptions = () => {
     // Add subscriptions for Call and Put options
     if (defaultCallSecurityId.value && defaultCallSecurityId.value !== 'N/A' && defaultCallSecurityId.value !== currentSubscriptions.value.callOption) {
       symbolsToSubscribe.push(`${exchangeSegment}|${defaultCallSecurityId.value}`);
+      currentSubscriptions.value.callOptionExchange = exchangeSegment;
+      currentSubscriptions.value.callOption = defaultCallSecurityId.value;
     }
     if (defaultPutSecurityId.value && defaultPutSecurityId.value !== 'N/A' && defaultPutSecurityId.value !== currentSubscriptions.value.putOption) {
       symbolsToSubscribe.push(`${exchangeSegment}|${defaultPutSecurityId.value}`);
+      currentSubscriptions.value.putOptionExchange = exchangeSegment;
+      currentSubscriptions.value.putOption = defaultPutSecurityId.value;
     }
 
     if (symbolsToSubscribe.length > 0) {
@@ -2720,8 +3242,6 @@ const subscribeToOptions = () => {
         symbols: symbolsToSubscribe
       };
       socket.value.send(JSON.stringify(data));
-      currentSubscriptions.value.callOption = defaultCallSecurityId.value;
-      currentSubscriptions.value.putOption = defaultPutSecurityId.value;
       getOrderMargin();
     }
 
@@ -2751,25 +3271,51 @@ const updatePositionSecurityIds = () => {
       positionSecurityIds.value[position.tsym] = position.token;
     }
   });
+  upstoxPositionBook.value.forEach(position => {
+    if (position.instrument_token && !positionSecurityIds.value[position.trading_symbol]) {
+      positionSecurityIds.value[position.trading_symbol] = position.instrument_token;
+    }
+  });
 };
+
 const subscribeToPositionLTPs = () => {
   if (socket.value && socket.value.readyState === WebSocket.OPEN) {
-    const symbolsToSubscribe = Object.entries(positionSecurityIds.value)
-      .map(([tsym, token]) => {
-        const position = [
-          ...flatTradePositionBook.value,
-          ...shoonyaPositionBook.value,
-        ].find(p => (p.tsym) === tsym);
+    const brokerName = selectedBroker.value;  // Corrected this line
+    let symbolsToSubscribe = []; // Initialize an empty array to avoid undefined symbolsToSubscribe
 
-        if (!position) {
-          // console.warn(`No position found for tsym: ${tsym}`);
-          return null;
-        }
+    if (['Flattrade', 'Shoonya'].includes(brokerName)) {
+      symbolsToSubscribe = Object.entries(positionSecurityIds.value)
+        .map(([tsym, token]) => {
+          const position = [
+            ...flatTradePositionBook.value,
+            ...shoonyaPositionBook.value,
+          ].find(p => p.tsym === tsym);
 
-        const exchange = position.exch || position.exchangeSegment;
-        return `${exchange}|${token}`;
-      })
-      .filter(Boolean);
+          if (!position) {
+            // console.warn(`No position found for tsym: ${tsym}`);
+            return null;
+          }
+
+          const exchange = position.exch || position.exchangeSegment;
+          return `${exchange}|${token}`;
+        })
+        .filter(Boolean);
+    }
+
+    if (brokerName === 'Upstox') {
+      symbolsToSubscribe = Object.entries(positionSecurityIds.value)
+        .map(([tsym, token]) => {
+          const position = upstoxPositionBook.value.find(p => p.trading_symbol === tsym);
+
+          if (!position) {
+            // console.warn(`No position found for tsym: ${tsym}`);
+            return null;
+          }
+
+          return `${token}`;
+        })
+        .filter(Boolean);
+    }
 
     if (symbolsToSubscribe.length > 0) {
       const data = {
@@ -2782,34 +3328,70 @@ const subscribeToPositionLTPs = () => {
   }
 };
 const unsubscribeFromSymbols = (symbols) => {
-  if (socket.value && socket.value.readyState === WebSocket.OPEN && symbols.length > 0) {
-    const data = {
-      action: 'unsubscribe',
-      symbols: symbols
-    };
-    // console.log('Sending unsubscribe data:', data);
-    socket.value.send(JSON.stringify(data));
+  if (socket.value && socket.value.readyState === WebSocket.OPEN) {
+    const validSymbols = symbols.filter(symbol => {
+      const [exchange, id] = symbol.split('|');
+      return exchange && exchange !== 'undefined' && id;
+    });
+
+    if (validSymbols.length > 0) {
+      const data = {
+        action: 'unsubscribe',
+        symbols: validSymbols
+      };
+      socket.value.send(JSON.stringify(data));
+      //  console.log('Sending unsubscribe data:', data);
+    }
   }
 };
 const updateSubscriptions = () => {
   const symbolsToUnsubscribe = [];
+  const fallbackExchange = getExchangeSegment(); // Use this as a fallback
 
   // Check if master symbol has changed
   if (currentSubscriptions.value.masterSymbol !== selectedMasterSymbol.value) {
     if (currentSubscriptions.value.masterSymbol) {
-      const oldSymbolInfo = exchangeSymbols.value.symbolData[currentSubscriptions.value.masterSymbol];
-      if (oldSymbolInfo) {
-        symbolsToUnsubscribe.push(`${oldSymbolInfo.exchangeCode}|${oldSymbolInfo.exchangeSecurityId}`);
+      if (selectedBroker.value?.brokerName === 'Upstox') {
+        // Use the Upstox format for unsubscribing
+        switch (currentSubscriptions.value.masterSymbol) {
+          case 'NIFTY':
+            symbolsToUnsubscribe.push('NSE_INDEX|Nifty 50');
+            break;
+          case 'BANKNIFTY':
+            symbolsToUnsubscribe.push('NSE_INDEX|Nifty Bank');
+            break;
+          case 'FINNIFTY':
+            symbolsToUnsubscribe.push('NSE_INDEX|Nifty Fin Service');
+            break;
+          case 'MIDCPNIFTY':
+            symbolsToUnsubscribe.push('NSE_INDEX|NIFTY MID SELECT');
+            break;
+          case 'SENSEX':
+            symbolsToUnsubscribe.push('BSE_INDEX|SENSEX');
+            break;
+          case 'BANKEX':
+            symbolsToUnsubscribe.push('BSE_INDEX|BANKEX');
+            break;
+          default:
+            console.error('Unknown master symbol for Upstox:', currentSubscriptions.value.masterSymbol);
+        }
+      } else if (selectedBroker.value?.brokerName === 'Flattrade' || selectedBroker.value?.brokerName === 'Shoonya') {
+        const oldSymbolInfo = exchangeSymbols.value.symbolData[currentSubscriptions.value.masterSymbol];
+        if (oldSymbolInfo) {
+          symbolsToUnsubscribe.push(`${oldSymbolInfo.exchangeCode}|${oldSymbolInfo.exchangeSecurityId}`);
+        }
       }
     }
   }
 
   // Check if options have changed
   if (currentSubscriptions.value.callOption && currentSubscriptions.value.callOption !== defaultCallSecurityId.value) {
-    symbolsToUnsubscribe.push(`NFO|${currentSubscriptions.value.callOption}`);
+    const callExchange = currentSubscriptions.value.callOptionExchange || fallbackExchange;
+    symbolsToUnsubscribe.push(`${callExchange}|${currentSubscriptions.value.callOption}`);
   }
   if (currentSubscriptions.value.putOption && currentSubscriptions.value.putOption !== defaultPutSecurityId.value) {
-    symbolsToUnsubscribe.push(`NFO|${currentSubscriptions.value.putOption}`);
+    const putExchange = currentSubscriptions.value.putOptionExchange || fallbackExchange;
+    symbolsToUnsubscribe.push(`${putExchange}|${currentSubscriptions.value.putOption}`);
   }
 
   // Unsubscribe from old symbols
@@ -2998,7 +3580,7 @@ const checkAndShowAdaptabilityGuide = () => {
   }
 };
 const handleOrderTypeChange = () => {
-  console.log('Order Type Changed:', selectedOrderType.value);
+  //  console.log('Order Type Changed:', selectedOrderType.value);
 
   switch (selectedOrderType.value) {
     case 'MKT':
@@ -3028,13 +3610,13 @@ const getCurrentLTP = () => {
 };
 const setStoploss = (position, type) => {
   if (!enableStoploss.value) {
-    console.log('Stoploss is disabled.');
+    //  console.log('Stoploss is disabled.');
     return;
   }
   const quantity = Math.abs(Number(position.netQty || position.netqty));
 
   if (quantity === 0) {
-    console.log(`Quantity is zero for ${position.tsym}, no stoploss will be set.`);
+    //  console.log(`Quantity is zero for ${position.tsym}, no stoploss will be set.`);
     return;
   }
 
@@ -3273,6 +3855,10 @@ onMounted(async () => {
       fetchShoonyaPositions();
       activeFetchFunction.value = 'fetchShoonyaPositions';
     }
+    if (selectedBroker.value?.brokerName === 'Upstox') {
+      fetchUpstoxPositions();
+      activeFetchFunction.value = 'fetchUpstoxPositions';
+    }
   }
   if (activeTab.value === 'trades') {
     if (selectedBroker.value?.brokerName === 'Flattrade') {
@@ -3282,6 +3868,10 @@ onMounted(async () => {
     if (selectedBroker.value?.brokerName === 'Shoonya') {
       fetchShoonyaOrdersTradesBook();
       activeFetchFunction.value = 'fetchShoonyaOrdersTradesBook';
+    }
+    if (selectedBroker.value?.brokerName === 'Upstox') {
+      fetchUpstoxOrdersTradesBook();
+      activeFetchFunction.value = 'fetchUpstoxOrdersTradesBook';
     }
   }
   enableHotKeys.value = localStorage.getItem('EnableHotKeys') !== 'false';
@@ -3376,6 +3966,10 @@ watch(selectedBroker, async (newBroker) => {
         activeFetchFunction.value = 'fetchShoonyaPositions';
         await fetchShoonyaPositions();
       }
+      else if (newBroker.brokerName === 'Upstox') {
+        activeFetchFunction.value = 'fetchUpstoxPositions';
+        await fetchUpstoxPositions();
+      }
     } else if (activeTab.value === 'trades') {
       if (newBroker.brokerName === 'Flattrade') {
         activeFetchFunction.value = 'fetchFlattradeOrdersTradesBook';
@@ -3384,6 +3978,10 @@ watch(selectedBroker, async (newBroker) => {
       else if (newBroker.brokerName === 'Shoonya') {
         activeFetchFunction.value = 'fetchShoonyaOrdersTradesBook';
         await fetchShoonyaOrdersTradesBook();
+      }
+      else if (newBroker.brokerName === 'Upstox') {
+        activeFetchFunction.value = 'fetchUpstoxOrdersTradesBook';
+        await fetchUpstoxOrdersTradesBook();
       }
     }
   }
@@ -3431,6 +4029,9 @@ watch(
       }
       if (selectedBroker.value?.brokerName === 'Shoonya') {
         setShoonyaCredentials();
+      }
+      if (selectedBroker.value?.brokerName === 'Upstox') {
+        setUpstoxCredentials();
       }
       if (selectedBroker.value?.brokerName === 'PaperTrading') {
         setPaperTradingCredentials();
@@ -3490,6 +4091,10 @@ watch(activeTab, async (newTab) => {
       activeFetchFunction.value = 'fetchShoonyaPositions';
       await fetchShoonyaPositions();
     }
+    else if (selectedBroker.value?.brokerName === 'Upstox') {
+      activeFetchFunction.value = 'fetchUpstoxPositions';
+      await fetchUpstoxPositions();
+    }
   } else if (newTab === 'trades') {
     if (selectedBroker.value?.brokerName === 'Flattrade') {
       activeFetchFunction.value = 'fetchFlattradeOrdersTradesBook';
@@ -3498,6 +4103,10 @@ watch(activeTab, async (newTab) => {
     else if (selectedBroker.value?.brokerName === 'Shoonya') {
       activeFetchFunction.value = 'fetchShoonyaOrdersTradesBook';
       await fetchShoonyaOrdersTradesBook();
+    }
+    else if (selectedBroker.value?.brokerName === 'Upstox') {
+      activeFetchFunction.value = 'fetchUpstoxOrdersTradesBook';
+      await fetchUpstoxOrdersTradesBook();
     }
   }
 });

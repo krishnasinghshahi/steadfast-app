@@ -3,6 +3,7 @@ import TradeView from '../views/TradeView.vue'
 import ManageBrokers from '../views/ManageBrokers.vue'
 import AddBroker from '../views/AddBroker.vue'
 import Flattrade_Redirect from '../views/BrokerRedirect/Flattrade_Redirect.vue'
+import Upstox_Redirect from '../views/BrokerRedirect/Upstox_Redirect.vue'
 import HomeView from '../views/HomeView.vue'
 
 const router = createRouter({
@@ -35,6 +36,10 @@ const router = createRouter({
     {
       path: '/flattrade/redirect',
       component: Flattrade_Redirect
+    },
+    {
+      path: '/upstox/redirect',
+      component: Upstox_Redirect
     }
   ]
 })

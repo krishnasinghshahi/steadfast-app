@@ -15,6 +15,7 @@ export default defineConfig({
     proxy: {
       '/flattradeSymbols': 'http://localhost:3000/flattrade/',
       '/shoonyaSymbols': 'http://localhost:3000/shoonya/',
+      '/upstoxSymbols': 'http://localhost:3000/upstox/',
       '/flattradeApi': {
         target: 'https://authapi.flattrade.in',
         changeOrigin: true,
@@ -24,6 +25,11 @@ export default defineConfig({
         target: 'https://api.shoonya.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/shoonyaApi/, '')
+      },
+      '/upstoxApi': {
+        target: 'https://api.upstox.com/v2',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/upstoxApi/, '')
       }
     }
   }

@@ -13,8 +13,12 @@ const SHOONYA_CLIENT_ID = ref('');
 const SHOONYA_API_TOKEN = ref('');
 const PAPERTRADING_API_KEY = ref('logicGate'); // Default value for PaperTrading
 const PAPERTRADING_CLIENT_ID = ref('Sp0ck'); // Default value for PaperTrading
+const UPSTOX_API_SECRET = ref('');
+const UPSTOX_CLIENT_ID = ref('');
+const UPSTOX_API_TOKEN = ref('');
 
 const flattradeReqCode = ref('');
+const upstoxReqCode = ref('');
 const shoonyaBrokerUserId = ref('');
 const shoonyaBrokerPassword = ref('');
 const shoonyaOneTimePassword = ref('');
@@ -45,6 +49,16 @@ const brokers = computed(() => {
       brokerClientId: SHOONYA_CLIENT_ID.value,
       apiKey: SHOONYA_API_KEY.value,
       apiToken: SHOONYA_API_TOKEN.value
+    });
+  }
+
+  if (UPSTOX_CLIENT_ID.value && UPSTOX_API_SECRET.value) {
+    brokersArray.push({
+      id: 'Upstox',
+      brokerName: 'Upstox',
+      brokerClientId: UPSTOX_CLIENT_ID.value,
+      apiSecret: UPSTOX_API_SECRET.value,
+      apiToken: UPSTOX_API_TOKEN.value
     });
   }
 
@@ -100,6 +114,12 @@ onMounted(() => {
   SHOONYA_CLIENT_ID.value = shoonyaDetails.clientId || '';
   SHOONYA_API_TOKEN.value = localStorage.getItem('SHOONYA_API_TOKEN') || '';
 
+  // Retrieve Upstox details
+  const upstoxDetails = JSON.parse(localStorage.getItem('broker_Upstox') || '{}');
+  UPSTOX_CLIENT_ID.value = upstoxDetails.clientId || '';
+  UPSTOX_API_SECRET.value = upstoxDetails.apiSecret || '';
+  UPSTOX_API_TOKEN.value = localStorage.getItem('UPSTOX_API_TOKEN') || '';
+
   // Retrieve PaperTrading details
   const paperTradingDetails = JSON.parse(localStorage.getItem('broker_PaperTrading') || '{}');
   PAPERTRADING_API_KEY.value = paperTradingDetails.apiKey || '';
@@ -111,9 +131,13 @@ onMounted(() => {
 
   // fetchBrokers(); disabled, as we are using localStorage to store the broker details
 
-  const storedCode = localStorage.getItem('flattradeReqCode');
-  if (storedCode) {
-    flattradeReqCode.value = storedCode;
+  const flattradeStoredCode = localStorage.getItem('flattradeReqCode');
+  const upstoxStoredCode = localStorage.getItem('upstoxReqCode');
+  if (flattradeStoredCode) {
+    flattradeReqCode.value = flattradeStoredCode;
+  }
+  if (upstoxStoredCode) {
+    upstoxReqCode.value = upstoxStoredCode;
   }
   statusMessage.value = localStorage.getItem('statusMessage') || '';
   // Clear any lingering status message after component mount
@@ -128,6 +152,10 @@ onMounted(() => {
     if (event.data.type === 'flattradeReqCode' && event.data.code) {
       flattradeReqCode.value = event.data.code;
       localStorage.setItem('flattradeReqCode', event.data.code); // Update local storage with new flattradeReqCode
+    }
+    if (event.data.type === 'upstoxReqCode' && event.data.code) {
+      upstoxReqCode.value = event.data.code;
+      localStorage.setItem('upstoxReqCode', event.data.code); // Update local storage with new upstoxReqCode
     }
   });
   checkAllTokens();
@@ -164,6 +192,16 @@ watch(SHOONYA_API_TOKEN, (newToken) => {
   }
 });
 
+// Watch for changes in UPSTOX_API_TOKEN and update localStorage
+watch(UPSTOX_API_TOKEN, (newToken) => {
+  if (newToken) {
+    localStorage.setItem('UPSTOX_API_TOKEN', newToken);
+    validateToken('UPSTOX');
+  } else {
+    localStorage.removeItem('UPSTOX_API_TOKEN');
+  }
+});
+
 const openFlattradeAuthUrl = () => {
   statusMessage.value = 'Waiting for broker auth to complete...';
 
@@ -179,6 +217,33 @@ const openFlattradeAuthUrl = () => {
   }
 
   const authUrl = `https://auth.flattrade.in/?app_key=${storedFlattradeApiKey}`;
+  window.open(authUrl, '_blank');
+
+  // Clear status message after 2 minutes if token generation doesn't complete
+  setTimeout(() => {
+    if (statusMessage.value === 'Waiting for broker auth to complete...') {
+      statusMessage.value = '';
+      localStorage.removeItem('statusMessage');
+    }
+  }, 120000); // 2 minutes
+};
+
+const openUpstoxAuthUrl = () => {
+  statusMessage.value = 'Waiting for broker auth to complete...';
+
+  localStorage.setItem('statusMessage', statusMessage.value);
+
+  const upstoxDetails = JSON.parse(localStorage.getItem('broker_Upstox') || '{}');
+  const storedUpstoxClientId = upstoxDetails.clientId;
+  const redirectUrl = 'http://localhost:5173/upstox/redirect?'
+
+  if (!storedUpstoxClientId) {
+    errorMessage.value = 'Upstox Client Id is missing';
+    clearErrorMessage();
+    return;
+  }
+
+  const authUrl = `https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id=${storedUpstoxClientId}&redirect_uri=${redirectUrl}`;
   window.open(authUrl, '_blank');
 
   // Clear status message after 2 minutes if token generation doesn't complete
@@ -211,9 +276,9 @@ const generateToken = async (broker) => {
     return;
   }
 
-  if (!flattradeReqCode.value) {
-    errorMessage.value = 'Request code is missing';
-    clearErrorMessage();
+  if (broker.brokerName === 'Upstox') {
+    openUpstoxAuthUrl();
+    statusMessage.value = 'Waiting for upstoxReqCode...';
     return;
   }
 };
@@ -268,22 +333,83 @@ watch(flattradeReqCode, async (newCode) => {
   }
 });
 
-function maskBrokerClientId(brokerClientId) {
+watch(upstoxReqCode, async (newCode) => {
+  if (newCode && userTriggeredTokenGeneration.value) {
+    statusMessage.value = `Received upstoxReqCode: ${newCode}`;
 
-  if (!brokerClientId) return brokerClientId; // Ensure brokerClientId is defined and not a placeholder
+    const upstoxDetails = JSON.parse(localStorage.getItem('broker_Upstox') || '{}');
+    const storedClientId = upstoxDetails.clientId;
+    const storedApiSecret = upstoxDetails.apiSecret;
+
+    if (!storedClientId || !storedApiSecret) {
+      errorMessage.value = 'API client ID or secret is missing';
+      clearErrorMessage();
+      return;
+    }
+
+    const data = new URLSearchParams({
+      'grant_type': 'authorization_code',
+      'redirect_uri': 'http://localhost:5173/upstox/redirect?',
+      'client_secret': storedApiSecret,
+      'client_id': storedClientId,
+      'code': newCode 
+    });
+
+    try {
+      const response = await axios.post('/upstoxApi/login/authorization/token', data, {
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded', 
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.data && response.data.access_token) {
+        UPSTOX_API_TOKEN.value = response.data.access_token;
+        errorMessage.value = '';
+        statusMessage.value = `Upstox Token generated successfully`;
+        localStorage.removeItem('statusMessage');
+        console.log('Upstox Token generated successfully');
+
+        setTimeout(() => {
+          statusMessage.value = '';
+        }, 5000);
+      } else {
+        throw new Error('Token not found in response');
+      }
+    } catch (error) {
+      console.error('Error generating token:', error);
+      errorMessage.value = 'Error generating token: ' + (error.response?.data?.message || error.message);
+      clearErrorMessage();
+    }
+  }
+});
+
+function maskBrokerClientId(brokerClientId) {
+  if (!brokerClientId) return brokerClientId;
 
   const length = brokerClientId.length;
-  if (length <= 2) return brokerClientId; // If the length is 2 or less, return as is
+  if (length <= 2) return brokerClientId;
 
-  const maskLength = Math.max(1, Math.floor(length / 2)); // Mask at least 1 character, up to half the length
-  const startUnmaskedLength = Math.ceil((length - maskLength) / 2);
-  const endUnmaskedLength = length - startUnmaskedLength - maskLength;
+  if (length <= 8) {
+    const maskLength = Math.max(1, Math.floor(length / 2));
+    const startUnmaskedLength = Math.ceil((length - maskLength) / 2);
+    const endUnmaskedLength = length - startUnmaskedLength - maskLength;
 
-  const firstPart = brokerClientId.slice(0, startUnmaskedLength);
-  const lastPart = brokerClientId.slice(-endUnmaskedLength);
-  const middleMask = '*'.repeat(maskLength); // Mask middle portion dynamically
+    const firstPart = brokerClientId.slice(0, startUnmaskedLength);
+    const lastPart = brokerClientId.slice(-endUnmaskedLength);
+    const middleMask = '*'.repeat(maskLength);
 
-  return `${firstPart}${middleMask}${lastPart}`;
+    return `${firstPart}${middleMask}${lastPart}`;
+  } else {
+    const visibleChars = 4;
+    const maskLength = 4;
+
+    const firstPart = brokerClientId.slice(0, 4);
+    const lastPart = brokerClientId.slice(-4);
+    const middleMask = '*'.repeat(maskLength);
+
+    return `${firstPart}${middleMask}${lastPart}`;
+  }
 }
 
 const getStatus = (broker) => {
@@ -396,6 +522,11 @@ const deleteBroker = (broker) => {
     SHOONYA_API_TOKEN.value = '';
     SHOONYA_API_KEY.value = '';
     SHOONYA_CLIENT_ID.value = '';
+  } else if (broker.brokerName === 'Upstox') {
+    localStorage.removeItem('UPSTOX_API_TOKEN');
+    UPSTOX_CLIENT_ID.value = '';
+    UPSTOX_API_SECRET.value = '';
+    UPSTOX_API_TOKEN.value = '';
   } else if (broker.brokerName === 'PaperTrading') {
     localStorage.removeItem('PAPERTRADING_API_TOKEN');
     PAPERTRADING_API_KEY.value = '';
@@ -449,7 +580,7 @@ const deleteBroker = (broker) => {
             </td>
             <td>
               <div class="d-flex align-items-center">
-                <span v-if="broker.brokerName === 'Flattrade' || broker.brokerName === 'Shoonya'">
+                <span v-if="['Flattrade','Shoonya','Upstox'].includes(broker.brokerName)">
                   {{ maskTokenSecret(broker.apiToken) }}
                 </span>
                 <button v-if="broker.apiToken" class="btn btn-sm btn-outline-secondary ms-2"
@@ -459,8 +590,9 @@ const deleteBroker = (broker) => {
               </div>
             </td>
             <td>
-              <span v-if="broker.brokerName === 'Flattrade'">24 Hours</span>
-              <span v-if="broker.brokerName === 'Shoonya'">24 Hours</span>
+              <span v-if="broker.brokerName === 'Flattrade'">6:30 AM</span>
+              <span v-if="broker.brokerName === 'Shoonya'">5:00 AM</span>
+              <span v-if="broker.brokerName === 'Upstox'">4:00 AM</span>
             </td>
             <td class="text-center">
               <template v-if="broker.brokerName === 'Shoonya'">
@@ -471,6 +603,9 @@ const deleteBroker = (broker) => {
               </template>
               <template v-else-if="broker.brokerName === 'Flattrade'">
                 <a class="link" @click.prevent="generateToken(broker)">Generate Token</a>
+              </template>
+              <template v-else-if="broker.brokerName === 'Upstox'">
+                <a href class="link" @click.prevent="generateToken(broker)">Generate Token</a>
               </template>
               <template v-else-if="broker.brokerName === 'PaperTrading'">
                 <select class="form-select form-select-sm w-100" v-model="selectedBrokerForPaper">
