@@ -17,15 +17,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        '/flattradeSymbols': {
+        '/symbols': {
           target: isProduction ? 'https://api.steadfastapp.in' : 'http://localhost:3000',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/flattradeSymbols/, '/flattrade/')
-        },
-        '/shoonyaSymbols': {
-          target: isProduction ? 'https://api.steadfastapp.in' : 'http://localhost:3000',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/shoonyaSymbols/, '/shoonya/')
+          changeOrigin: true
         },
         '/flattradeApi': {
           target: 'https://authapi.flattrade.in',

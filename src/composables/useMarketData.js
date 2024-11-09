@@ -37,18 +37,10 @@ export const fetchTradingData = async () => {
         throw new Error(`Unknown symbol: ${symbol}`)
       }
 
-      let response
-      if (selectedBroker.value?.brokerName === 'Flattrade') {
-        response = await fetch(
-          `${BASE_URL}/shoonya/symbols?exchangeSymbol=${exchangeSymbol}&masterSymbol=${symbol}`
-        )
-      } else if (selectedBroker.value?.brokerName === 'Shoonya') {
-        response = await fetch(
-          `${BASE_URL}/shoonya/symbols?exchangeSymbol=${exchangeSymbol}&masterSymbol=${symbol}`
-        )
-      } else {
-        throw new Error('Unsupported broker')
-      }
+      // Use common endpoint for both brokers
+      const response = await fetch(
+        `${BASE_URL}/symbols?exchangeSymbol=${exchangeSymbol}&masterSymbol=${symbol}`
+      )
 
       const data = await response.json()
 
@@ -79,7 +71,6 @@ export const fetchTradingData = async () => {
 
   // Update the reactive properties for the currently selected symbol
   updateSymbolData(selectedMasterSymbol.value)
-
   updateStrikesForExpiry(selectedExpiry.value)
   dataFetched.value = true
 
