@@ -395,17 +395,7 @@ export const checkOvertradeProtection = () => {
 }
 
 export const updateExchangeSymbols = () => {
-  if (
-    selectedBroker.value?.brokerName === 'Flattrade' ||
-    selectedBroker.value?.brokerName === 'Shoonya'
-  ) {
-    exchangeSymbols.value = {
-      NFO: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'],
-      BFO: ['SENSEX', 'BANKEX']
-    }
-  }
-
-  // Store symbolData in exchangeSymbols
+  // Just update the symbolData property
   exchangeSymbols.value.symbolData = symbolData
 }
 export const setDefaultExchangeAndMasterSymbol = () => {

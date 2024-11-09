@@ -2,6 +2,10 @@ import { ref, reactive } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
 export const BASE_URL = import.meta.env.VITE_BASE_URL
+export const exchangeSymbols = ref({
+  NFO: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'],
+  BFO: ['SENSEX', 'BANKEX']
+})
 export const showLTPRangeBar = ref(false)
 export const showToast = ref(false)
 export const toastMessage = ref('')
@@ -29,7 +33,6 @@ export const selectedPutStrike = ref({})
 export const callStrikeOffset = ref(localStorage.getItem('callStrikeOffset') || '0')
 export const putStrikeOffset = ref(localStorage.getItem('putStrikeOffset') || '0')
 export const expiryOffset = ref(localStorage.getItem('expiryOffset') || '0')
-export const exchangeSymbols = ref({})
 export const callStrikes = ref([])
 export const putStrikes = ref([])
 export const expiryDates = ref([])
