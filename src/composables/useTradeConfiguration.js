@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 
 import {
+  exchangeSymbols,
   selectedBroker,
   selectedExchange,
   lotsPerSymbol,
@@ -34,21 +35,27 @@ export const getExchangeSegment = () => {
     throw new Error('Broker or exchange not selected')
   }
 
-  if (selectedBroker.value?.brokerName === 'Flattrade') {
-    if (selectedExchange.value === 'NFO') {
-      return 'NFO'
-    } else if (selectedExchange.value === 'BFO') {
-      return 'BFO'
-    } else {
-      throw new Error('Selected exchange is not valid for Flattrade')
-    }
-  } else if (selectedBroker.value?.brokerName === 'Shoonya') {
-    if (selectedExchange.value === 'NFO') {
-      return 'NFO'
-    } else if (selectedExchange.value === 'BFO') {
-      return 'BFO'
-    } else {
-      throw new Error('Selected exchange is not valid for Shoonya')
+  // Check if the symbol exists in the selected exchange
+  const symbolExistsInExchange = exchangeSymbols.value[selectedExchange.value]?.includes(
+    selectedMasterSymbol.value
+  )
+  if (!symbolExistsInExchange) {
+    throw new Error(
+      `Symbol ${selectedMasterSymbol.value} is not valid for exchange ${selectedExchange.value}`
+    )
+  }
+
+  if (
+    selectedBroker.value?.brokerName === 'Flattrade' ||
+    selectedBroker.value?.brokerName === 'Shoonya'
+  ) {
+    switch (selectedExchange.value) {
+      case 'NSE':
+        return 'NFO'
+      case 'BSE':
+        return 'BFO'
+      default:
+        throw new Error(`Exchange ${selectedExchange.value} is not supported for Flattrade`)
     }
   } else {
     throw new Error('Unsupported broker')

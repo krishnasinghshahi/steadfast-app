@@ -3,8 +3,8 @@ import { useLocalStorage } from '@vueuse/core'
 
 export const BASE_URL = import.meta.env.VITE_BASE_URL
 export const exchangeSymbols = ref({
-  NFO: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'],
-  BFO: ['SENSEX', 'BANKEX']
+  NSE: ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'],
+  BSE: ['SENSEX', 'BANKEX']
 })
 export const showLTPRangeBar = ref(false)
 export const showToast = ref(false)
