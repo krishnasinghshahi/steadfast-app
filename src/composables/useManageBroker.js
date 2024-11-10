@@ -164,12 +164,8 @@ export function useManageBroker() {
 
   // Watch for changes in FLATTRADE_API_TOKEN and update localStorage
   watch(FLATTRADE_API_TOKEN, (newToken) => {
-    if (newToken) {
-      localStorage.setItem('FLATTRADE_API_TOKEN', newToken)
-      validateToken('Flattrade')
-    } else {
-      localStorage.removeItem('FLATTRADE_API_TOKEN')
-    }
+    localStorage.setItem('FLATTRADE_API_TOKEN', newToken)
+    validateToken('Flattrade')
   })
   // Shoonya Token Generation
   const handleShoonyaLogin = async () => {
@@ -264,12 +260,8 @@ export function useManageBroker() {
   }
   // Watch for changes in SHOONYA_API_TOKEN and update localStorage
   watch(SHOONYA_API_TOKEN, (newToken) => {
-    if (newToken) {
-      localStorage.setItem('SHOONYA_API_TOKEN', newToken)
-      validateToken('Shoonya')
-    } else {
-      localStorage.removeItem('SHOONYA_API_TOKEN')
-    }
+    localStorage.setItem('SHOONYA_API_TOKEN', newToken)
+    validateToken('Shoonya')
   })
 
   const clearErrorMessage = () => {

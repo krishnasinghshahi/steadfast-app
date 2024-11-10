@@ -68,28 +68,35 @@ const shoonyaFundLimits = async () => {
 }
 
 const validateToken = async (brokerName) => {
-  try {
-    switch (brokerName) {
-      case 'Flattrade':
-        await flattradeFundLimits()
-        tokenStatus.Flattrade = 'valid'
-        break
-      case 'Shoonya':
-        await shoonyaFundLimits()
-        tokenStatus.Shoonya = 'valid'
-        break
-      default:
-        throw new Error('Invalid broker name')
-    }
-  } catch (error) {
-    console.error(`Error validating token for ${brokerName}:`, error)
-    tokenStatus[brokerName] = 'invalid'
+  switch (brokerName) {
+    case 'Flattrade':
+      await flattradeFundLimits()
+      tokenStatus.Flattrade = 'valid'
+      break
+    case 'Shoonya':
+      await shoonyaFundLimits()
+      tokenStatus.Shoonya = 'valid'
+      break
+    default:
+      throw new Warning('No broker valid broker found')
   }
 }
 
 const checkAllTokens = async () => {
-  for (const broker of supportedBrokers) {
-    await validateToken(broker)
+  // First, get list of configured brokers
+  const configuredBrokers = supportedBrokers.filter((broker) => {
+    // Check if this broker exists in localStorage
+    return Object.keys(localStorage).some((key) => key.startsWith(`broker_${broker}_`))
+  })
+
+  // Only validate tokens for configured brokers
+  for (const broker of configuredBrokers) {
+    try {
+      await validateToken(broker)
+    } catch (error) {
+      console.warn(`Failed to validate token for ${broker}:`, error)
+      tokenStatus[broker] = 'invalid'
+    }
   }
 }
 

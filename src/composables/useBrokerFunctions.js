@@ -82,7 +82,14 @@ export const deleteBroker = (broker) => {
   )
   if (key) {
     localStorage.removeItem(key)
+    if (broker.brokerName === 'Flattrade') {
+      localStorage.removeItem('FLATTRADE_API_TOKEN')
+    } else if (broker.brokerName === 'Shoonya') {
+      localStorage.removeItem('SHOONYA_API_TOKEN')
+    }
+    return true
   }
+  return false
 }
 
 export const setFlattradeCredentials = async () => {

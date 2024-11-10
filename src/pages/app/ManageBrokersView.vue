@@ -87,8 +87,13 @@ onMounted(() => {
   checkAllTokens();
 });
 
-
-
+// Modify the delete handler in the template to refresh brokerDetails
+const handleDeleteBroker = (broker) => {
+  if (deleteBroker(broker)) {
+    // Refresh the broker details after successful deletion
+    brokerDetails.value = getBrokersFromLocalStorage()
+  }
+}
 
 </script>
 
@@ -276,7 +281,7 @@ onMounted(() => {
           <div class="d-flex flex-row justify-content-between w-100">
             <button type="button" class="btn btn-outline-secondary w-50 me-1" data-bs-dismiss="modal">Cancel</button>
             <button type="button" class="btn btn-danger w-50 ms-1" data-bs-dismiss="modal"
-              @click="deleteBroker(selectedBrokerToDelete)">
+              @click="handleDeleteBroker(selectedBrokerToDelete)">
               Delete
             </button>
           </div>
