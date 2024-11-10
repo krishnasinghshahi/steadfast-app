@@ -399,7 +399,7 @@ export const updateExchangeSymbols = () => {
   exchangeSymbols.value.symbolData = symbolData
 }
 export const setDefaultExchangeAndMasterSymbol = () => {
-  const cachedData = JSON.parse(localStorage.getItem('cachedTradingData')) || {}
+  const cachedData = JSON.parse(localStorage.getItem('cachedInstrumentsData')) || {}
 
   // Set the exchange
   const savedExchange = cachedData.selectedExchange || localStorage.getItem('selectedExchange')

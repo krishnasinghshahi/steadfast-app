@@ -770,7 +770,7 @@ onMounted(async () => {
   }
 
   // Load cached trading data
-  const cachedData = JSON.parse(localStorage.getItem('cachedTradingData'));
+  const cachedData = JSON.parse(localStorage.getItem('cachedInstrumentsData'));
   if (cachedData) {
     Object.keys(cachedData).forEach(key => {
       allSymbolsData[key] = cachedData[key];

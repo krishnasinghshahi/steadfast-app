@@ -75,7 +75,7 @@ export const fetchTradingInstruments = async () => {
   dataFetched.value = true
 
   // Cache the fetched data
-  localStorage.setItem('cachedTradingData', JSON.stringify(allSymbolsData))
+  localStorage.setItem('cachedInstrumentsData', JSON.stringify(allSymbolsData))
 }
 
 export const updateSymbolData = (symbol) => {
