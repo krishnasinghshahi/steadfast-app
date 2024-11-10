@@ -14,7 +14,7 @@
           <div class="col-6 col-md-4 col-lg-2">
             <label for="Exchange" class="form-label mb-0 small">Exchange</label>
             <select id="Exchange" class="form-select form-select-sm" aria-label="Exchange" v-model="selectedExchange"
-              @change="fetchTradingData" :class="{ 'disabled-form': isFormDisabled }">
+              @change="fetchTradingInstruments" :class="{ 'disabled-form': isFormDisabled }">
               <option v-for="exchange in exchangeOptions" :key="exchange" :value="exchange">
                 {{ exchange }}
               </option>
@@ -702,7 +702,7 @@ import { checkStoplossesAndTargets, setStoploss, removeStoploss, increaseStoplos
 import { handleHotKeys } from '@/composables/useKeyboardShortcuts'
 
 // Market Data Composables
-import { fetchTradingData, updateSymbolData } from '@/composables/useMarketData'
+import { fetchTradingInstruments, updateSymbolData } from '@/composables/useMarketData'
 
 // Formatters
 import {
@@ -784,7 +784,7 @@ onMounted(async () => {
   } else {
     updateExchangeSymbols();
     setDefaultExchangeAndMasterSymbol();
-    await fetchTradingData();
+    await fetchTradingInstruments();
   }
 
   updateAvailableQuantities();

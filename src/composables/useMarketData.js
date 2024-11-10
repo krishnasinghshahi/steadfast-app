@@ -21,7 +21,7 @@ import {
 // Trade Configuration Composables
 import { getExchangeSegment, updateStrikesForExpiry } from '@/composables/useTradeConfiguration'
 
-export const fetchTradingData = async () => {
+export const fetchTradingInstruments = async () => {
   const masterSymbols = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX', 'BANKEX']
 
   for (const symbol of masterSymbols) {

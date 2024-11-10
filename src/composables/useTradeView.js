@@ -146,7 +146,7 @@ import { checkStoplossesAndTargets } from '@/composables/useRiskManagement'
 
 // Market Data Composables
 import {
-  fetchTradingData,
+  fetchTradingInstruments,
   getMasterSymbolPrice,
   updateSymbolData
 } from '@/composables/useMarketData'
@@ -705,7 +705,7 @@ watch(selectedBroker, async (newBroker) => {
       await fetchFundLimit()
       updateExchangeSymbols()
       setDefaultExchangeAndMasterSymbol()
-      await fetchTradingData()
+      await fetchTradingInstruments()
       setDefaultExpiry()
 
       debouncedFetchData()
@@ -719,7 +719,7 @@ watch(activeTab, () => {
 })
 // Watcher for selectedExpiry to repopulate strike prices
 watch(selectedExpiry, async (newExpiry) => {
-  // await fetchTradingData();
+  // await fetchTradingInstruments();
   updateStrikesForExpiry(newExpiry)
 })
 watch(selectedCallStrike, (newStrike, oldStrike) => {
