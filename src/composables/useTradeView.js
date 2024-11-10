@@ -111,10 +111,7 @@ import {
   productTypes,
   updateAvailableQuantities,
   orderTypes,
-  updateSelectedQuantity,
-  updateStrikesForExpiry,
-  synchronizeCallStrikes,
-  synchronizePutStrikes
+  updateSelectedQuantity
 } from '@/composables/useTradeConfiguration'
 
 // Portfolio Management Composables
@@ -136,7 +133,10 @@ import { checkStoplossesAndTargets } from '@/composables/useRiskManagement'
 import {
   fetchTradingInstruments,
   getMasterSymbolPrice,
-  updateSymbolData
+  updateSymbolData,
+  updateStrikesForExpiry,
+  synchronizeCallStrikes,
+  synchronizePutStrikes
 } from '@/composables/useMarketData'
 
 // WebSocket Composables

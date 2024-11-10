@@ -618,7 +618,7 @@ import { killSwitchRemainingTime, toggleKillSwitch, initKillSwitch, killSwitchBu
 import { availableBrokers, brokerStatus } from '@/composables/useBrokerFunctions'
 
 // Trade Configuration Composables
-import { productTypes, getProductTypeValue, updateAvailableQuantities, orderTypes, displayOrderTypes, selectedLots, loadLots, updateSelectedQuantity, updateStrikesForExpiry } from '@/composables/useTradeConfiguration'
+import { productTypes, getProductTypeValue, updateAvailableQuantities, orderTypes, displayOrderTypes, selectedLots, loadLots, updateSelectedQuantity } from '@/composables/useTradeConfiguration'
 
 // Order Management Composables
 import { closeAllPositions, cancelPendingOrders, closeSelectedPositions } from '@/composables/useOrderManagement'
@@ -630,7 +630,7 @@ import { checkStoplossesAndTargets, setStoploss, removeStoploss, increaseStoplos
 import { handleHotKeys } from '@/composables/useKeyboardShortcuts'
 
 // Market Data Composables
-import { fetchTradingInstruments, updateSymbolData } from '@/composables/useMarketData'
+import { fetchTradingInstruments, updateSymbolData, updateStrikesForExpiry } from '@/composables/useMarketData'
 
 // Formatters
 import {

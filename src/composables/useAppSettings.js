@@ -26,7 +26,7 @@ import {
 } from '@/stores/globalStore'
 
 // Trade Configuration Composables
-import { updateStrikesForExpiry } from '@/composables/useTradeConfiguration'
+import { updateStrikesForExpiry } from '@/composables/useMarketData'
 
 // PnL Calculations Composables
 import { totalCapitalPercentage, totalProfit } from '@/composables/usePnlCalculations'
