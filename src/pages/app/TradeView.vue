@@ -177,10 +177,7 @@
               <div class="col-12 mt-2 d-flex align-items-center justify-content-between">
                 <span>
                   <span>LTP: </span>
-                  <span class="ms-2 fw-bold" :class="{
-                    'text-success': parseFloat(latestCallLTP) > parseFloat(callOpenPrice),
-                    'text-danger': parseFloat(latestCallLTP) < parseFloat(callOpenPrice)
-                  }">{{ latestCallLTP }}
+                  <span class="ms-2 fw-bold">{{ latestCallLTP }}
                   </span>
                 </span>
 
@@ -190,74 +187,35 @@
               </div>
             </div>
 
-
-
-            <!-- Call OHLC Values -->
-            <div class="d-flex w-100 justify-content-around flex-wrap" v-if="showOHLCValues">
-              <span class="text-primary">O: {{ callOpenPrice }}</span>
-              <span class="text-success">H: {{ callHighPrice }}</span>
-              <span class="text-danger">L: {{ callLowPrice }}</span>
-              <span class="text-warning">C: {{ callClosePrice }}</span>
-            </div>
-            <!-- LTP Range Bar for Call Strike -->
-            <LtpRangeBarComponent v-if="showLTPRangeBar" :ltpRangeWidth="callLtpRangeWidth"
-              :openMarkerPosition="callOpenMarkerPosition" :lowPrice="callLowPrice" :highPrice="callHighPrice" />
           </div>
 
           <!-- Live Underlying Price -->
           <div class="order-3 order-md-0 col-12 col-md-4 col-lg-4 text-center mt-3 mt-md-0">
             <p class="mb-0" v-if="selectedMasterSymbol === 'NIFTY'">
               Nifty 50:
-              <b :class="{
-                'text-success': parseFloat(niftyPrice) > parseFloat(masterOpenPrice),
-                'text-danger': parseFloat(niftyPrice) < parseFloat(masterOpenPrice)
-              }">{{ niftyPrice }}</b>
+              <b>{{ niftyPrice }}</b>
             </p>
             <p class="mb-0" v-if="selectedMasterSymbol === 'BANKNIFTY'">
               Bank Nifty:
-              <b :class="{
-                'text-success': parseFloat(bankNiftyPrice) > parseFloat(masterOpenPrice),
-                'text-danger': parseFloat(bankNiftyPrice) < parseFloat(masterOpenPrice)
-              }">{{ bankNiftyPrice }}</b>
+              <b>{{ bankNiftyPrice }}</b>
             </p>
             <p class="mb-0" v-if="selectedMasterSymbol === 'FINNIFTY'">
               Fin Nifty:
-              <b :class="{
-                'text-success': parseFloat(finniftyPrice) > parseFloat(masterOpenPrice),
-                'text-danger': parseFloat(finniftyPrice) < parseFloat(masterOpenPrice)
-              }">{{ finniftyPrice }}</b>
+              <b>{{ finniftyPrice }}</b>
             </p>
             <p class="mb-0" v-if="selectedMasterSymbol === 'MIDCPNIFTY'">
               Nifty Mid Select:
-              <b :class="{
-                'text-success': parseFloat(midcpniftyPrice) > parseFloat(masterOpenPrice),
-                'text-danger': parseFloat(midcpniftyPrice) < parseFloat(masterOpenPrice)
-              }">{{ midcpniftyPrice }}</b>
+              <b>{{ midcpniftyPrice }}</b>
             </p>
             <p class="mb-0" v-if="selectedMasterSymbol === 'SENSEX'">
               Sensex:
-              <b :class="{
-                'text-success': parseFloat(sensexPrice) > parseFloat(masterOpenPrice),
-                'text-danger': parseFloat(sensexPrice) < parseFloat(masterOpenPrice)
-              }">{{ sensexPrice }}</b>
+              <b>{{ sensexPrice }}</b>
             </p>
             <p class="mb-0" v-if="selectedMasterSymbol === 'BANKEX'">
               Bankex:
-              <b :class="{
-                'text-success': parseFloat(bankexPrice) > parseFloat(masterOpenPrice),
-                'text-danger': parseFloat(bankexPrice) < parseFloat(masterOpenPrice)
-              }">{{ bankexPrice }}</b>
+              <b>{{ bankexPrice }}</b>
             </p>
-            <!-- Master OHLC Values -->
-            <div class="d-flex w-100 justify-content-around flex-wrap" v-if="showOHLCValues">
-              <span class="text-primary">O: {{ masterOpenPrice }}</span>
-              <span class="text-success">H: {{ masterHighPrice }}</span>
-              <span class="text-danger">L: {{ masterLowPrice }}</span>
-              <span class="text-warning">C: {{ masterClosePrice }}</span>
-            </div>
-            <!-- LTP Range Bar for Live Underlying Price -->
-            <LtpRangeBarComponent v-if="showLTPRangeBar" :ltpRangeWidth="ltpRangeWidth"
-              :openMarkerPosition="openMarkerPosition" :lowPrice="masterLowPrice" :highPrice="masterHighPrice" />
+
           </div>
 
           <!-- Put Strike Selection -->
@@ -284,25 +242,11 @@
                 </span>
                 <span>
                   <span>LTP: </span>
-                  <span class="ms-2 fw-bold" :class="{
-                    'text-success': parseFloat(latestPutLTP) > parseFloat(putOpenPrice),
-                    'text-danger': parseFloat(latestPutLTP) < parseFloat(putOpenPrice)
-                  }">{{ latestPutLTP }}
+                  <span class="ms-2 fw-bold">{{ latestPutLTP }}
                   </span>
                 </span>
               </div>
             </div>
-
-            <!-- Put OHLC Values -->
-            <div class="d-flex w-100 justify-content-around flex-wrap" v-if="showOHLCValues">
-              <span class="text-primary">O: {{ putOpenPrice }}</span>
-              <span class="text-success">H: {{ putHighPrice }}</span>
-              <span class="text-danger">L: {{ putLowPrice }}</span>
-              <span class="text-warning">C: {{ putClosePrice }}</span>
-            </div>
-            <!-- LTP Range Bar for Put Strike -->
-            <LtpRangeBarComponent v-if="showLTPRangeBar" :ltpRangeWidth="putLtpRangeWidth"
-              :openMarkerPosition="putOpenMarkerPosition" :lowPrice="putLowPrice" :highPrice="putHighPrice" />
           </div>
         </div>
 
@@ -639,7 +583,6 @@ import BrokerComponent from '@/components/BrokerComponent.vue';
 import { checkAllTokens } from '@/composables/useBrokerTokenValidator';
 import PositionsTableComponent from '@/components/PositionsTableComponent.vue';
 import OrdersNTradesComponent from '@/components/OrdersNTradesComponent.vue';
-import LtpRangeBarComponent from '@/components/LtpRangeBarComponent.vue';
 import PnlComponent from '@/components/PnlComponent.vue';
 
 // Global State
@@ -664,18 +607,6 @@ import {
   latestCallLTP,
   latestPutLTP,
   activeFetchFunction,
-  masterOpenPrice,
-  masterHighPrice,
-  masterLowPrice,
-  masterClosePrice,
-  callOpenPrice,
-  callHighPrice,
-  callLowPrice,
-  callClosePrice,
-  putOpenPrice,
-  putHighPrice,
-  putLowPrice,
-  putClosePrice,
   reconnectTimeout,
   wsConnectionState,
 } from '@/stores/globalStore'
@@ -734,12 +665,6 @@ import {
   combinedOrdersAndTrades,
   isValidLimitPrice,
   limitPriceErrorMessage,
-  ltpRangeWidth,
-  callLtpRangeWidth,
-  callOpenMarkerPosition,
-  openMarkerPosition,
-  putLtpRangeWidth,
-  putOpenMarkerPosition,
   handleFormInputMouseScroll
 } from '@/composables/useTradeView'
 

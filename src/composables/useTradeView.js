@@ -46,19 +46,7 @@ import {
   putStrikeOffset,
   expiryOffset,
   showOHLCValues,
-  masterOpenPrice,
-  masterHighPrice,
-  masterLowPrice,
-  masterClosePrice,
   showStrikeDetails,
-  callOpenPrice,
-  callHighPrice,
-  callLowPrice,
-  callClosePrice,
-  putOpenPrice,
-  putHighPrice,
-  putLowPrice,
-  putClosePrice,
   totalRiskTargetToggle,
   totalRiskTargetType,
   totalRiskAmount,
@@ -242,111 +230,6 @@ export const combinedOrdersAndTrades = computed(() => {
 })
 
 export const previousOrderType = ref(orderTypes.value[0])
-
-export const ltpRangeWidth = computed(() => {
-  const low = parseFloat(masterLowPrice.value)
-  const high = parseFloat(masterHighPrice.value)
-  const ltp = getMasterSymbolPrice() // New helper function
-
-  if (isNaN(low) || isNaN(high) || isNaN(ltp) || high === low) {
-    return 0
-  }
-
-  return ((ltp - low) / (high - low)) * 100
-})
-export const ltpMarkerPosition = computed(() => {
-  const low = parseFloat(masterLowPrice.value)
-  const high = parseFloat(masterHighPrice.value)
-  const ltp = getMasterSymbolPrice() // New helper function
-
-  if (isNaN(low) || isNaN(high) || isNaN(ltp) || high === low) {
-    return 0
-  }
-
-  return ((ltp - low) / (high - low)) * 100
-})
-// Computed Properties for LTP Range Bar for Call Strike
-export const callLtpRangeWidth = computed(() => {
-  const low = parseFloat(callLowPrice.value)
-  const high = parseFloat(callHighPrice.value)
-  const ltp = parseFloat(latestCallLTP.value)
-
-  if (isNaN(low) || isNaN(high) || isNaN(ltp) || high === low) {
-    return 0
-  }
-
-  return ((ltp - low) / (high - low)) * 100
-})
-export const callLtpMarkerPosition = computed(() => {
-  const low = parseFloat(callLowPrice.value)
-  const high = parseFloat(callHighPrice.value)
-  const ltp = parseFloat(latestCallLTP.value) // Use the appropriate LTP value
-
-  if (isNaN(low) || isNaN(high) || isNaN(ltp) || high === low) {
-    return 0
-  }
-
-  return ((ltp - low) / (high - low)) * 100
-})
-// Computed Properties for LTP Range Bar for Put Strike
-export const putLtpRangeWidth = computed(() => {
-  const low = parseFloat(putLowPrice.value)
-  const high = parseFloat(putHighPrice.value)
-  const ltp = parseFloat(latestPutLTP.value)
-
-  if (isNaN(low) || isNaN(high) || isNaN(ltp) || high === low) {
-    return 0
-  }
-
-  return ((ltp - low) / (high - low)) * 100
-})
-export const putLtpMarkerPosition = computed(() => {
-  const low = parseFloat(putLowPrice.value)
-  const high = parseFloat(putHighPrice.value)
-  const ltp = parseFloat(latestPutLTP.value) // Use the appropriate LTP value
-
-  if (isNaN(low) || isNaN(high) || isNaN(ltp) || high === low) {
-    return 0
-  }
-
-  return ((ltp - low) / (high - low)) * 100
-})
-// Computed Properties for LTP Range Bar for Live Underlying Price
-export const openMarkerPosition = computed(() => {
-  const low = parseFloat(masterLowPrice.value)
-  const high = parseFloat(masterHighPrice.value)
-  const open = parseFloat(masterOpenPrice.value)
-
-  if (isNaN(low) || isNaN(high) || isNaN(open) || high === low) {
-    return 0
-  }
-
-  return ((open - low) / (high - low)) * 100
-})
-// Computed Properties for LTP Range Bar for Call Strike
-export const callOpenMarkerPosition = computed(() => {
-  const low = parseFloat(callLowPrice.value)
-  const high = parseFloat(callHighPrice.value)
-  const open = parseFloat(callOpenPrice.value)
-
-  if (isNaN(low) || isNaN(high) || isNaN(open) || high === low) {
-    return 0
-  }
-
-  return ((open - low) / (high - low)) * 100
-})
-// Computed Properties for LTP Range Bar for Put Strike
-export const putOpenMarkerPosition = computed(() => {
-  const low = parseFloat(putLowPrice.value)
-  const high = parseFloat(putHighPrice.value)
-  const open = parseFloat(putOpenPrice.value)
-
-  if (isNaN(low) || isNaN(high) || isNaN(open) || high === low) {
-    return 0
-  }
-
-  return ((open - low) / (high - low)) * 100
-})
 
 export const availableStrikes = computed(() => {
   const allStrikes = new Set([
@@ -860,52 +743,7 @@ watch(showOHLCValues, (newValue) => {
 watch(showStrikeDetails, (newValue) => {
   localStorage.setItem('showStrikeDetails', JSON.stringify(newValue))
 })
-// Watch for changes and update localStorage
-watch(
-  [masterOpenPrice, masterHighPrice, masterLowPrice, masterClosePrice],
-  ([open, high, low, close]) => {
-    localStorage.setItem('masterOpenPrice', open)
-    localStorage.setItem('masterHighPrice', high)
-    localStorage.setItem('masterLowPrice', low)
-    localStorage.setItem('masterClosePrice', close)
-  }
-)
 
-watch([callOpenPrice, callHighPrice, callLowPrice, callClosePrice], ([open, high, low, close]) => {
-  localStorage.setItem('callOpenPrice', open)
-  localStorage.setItem('callHighPrice', high)
-  localStorage.setItem('callLowPrice', low)
-  localStorage.setItem('callClosePrice', close)
-})
-
-watch([putOpenPrice, putHighPrice, putLowPrice, putClosePrice], ([open, high, low, close]) => {
-  localStorage.setItem('putOpenPrice', open)
-  localStorage.setItem('putHighPrice', high)
-  localStorage.setItem('putLowPrice', low)
-  localStorage.setItem('putClosePrice', close)
-})
-// Add this in your component's setup or mounted hook
-watch(
-  [
-    selectedMasterSymbol,
-    masterLowPrice,
-    masterHighPrice,
-    niftyPrice,
-    bankNiftyPrice,
-    finniftyPrice,
-    midcpniftyPrice,
-    sensexPrice,
-    bankexPrice
-  ],
-  () => {
-    // console.log('Master Symbol:', selectedMasterSymbol.value);
-    // console.log('Low:', masterLowPrice.value);
-    // console.log('High:', masterHighPrice.value);
-    // console.log('LTP:', getMasterSymbolPrice());
-    // console.log('Range Width:', ltpRangeWidth.value);
-    // console.log('Marker Position:', ltpMarkerPosition.value);
-  }
-)
 watch(totalRiskTargetToggle, (newValue) => {
   localStorage.setItem('totalRiskTargetToggle', JSON.stringify(newValue))
 })

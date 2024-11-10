@@ -19,6 +19,8 @@ import {
   latestPutLTP,
   positionSecurityIds,
   positionLTPs,
+  flatTradePositionBook,
+  shoonyaPositionBook,
   masterOpenPrice,
   masterHighPrice,
   masterLowPrice,
@@ -30,9 +32,7 @@ import {
   putOpenPrice,
   putHighPrice,
   putLowPrice,
-  putClosePrice,
-  flatTradePositionBook,
-  shoonyaPositionBook
+  putClosePrice
 } from '@/stores/globalStore'
 
 import { brokerStatus } from '@/composables/useBrokerFunctions'
