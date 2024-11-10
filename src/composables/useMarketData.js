@@ -12,7 +12,6 @@ import {
   callStrikes,
   putStrikes,
   allSymbolsData,
-  selectedBroker,
   selectedExpiry,
   expiryDates,
   dataFetched,

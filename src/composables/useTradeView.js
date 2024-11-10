@@ -16,18 +16,13 @@ import {
   showToast,
   flatTradePositionBook,
   shoonyaPositionBook,
-  positionSecurityIds,
-  socket,
   defaultCallSecurityId,
   defaultPutSecurityId,
   currentSubscriptions,
-  fundLimits,
   selectedExchange,
   positionLTPs,
   selectedProductType,
   limitPrice,
-  selectedFlattradePositionsSet,
-  selectedShoonyaPositionsSet,
   flatOrderBook,
   flatTradeBook,
   shoonyaOrderBook,
@@ -42,9 +37,6 @@ import {
   selectedBrokerName,
   activeTab,
   selectedExpiry,
-  callStrikeOffset,
-  putStrikeOffset,
-  expiryOffset,
   showOHLCValues,
   showStrikeDetails,
   totalRiskTargetToggle,
@@ -60,7 +52,6 @@ import {
   stickyMTM,
   overtradeProtection,
   exchangeSymbols,
-  expiryDates,
   selectedStrike,
   modalTransactionType,
   modalOptionType,
@@ -73,12 +64,6 @@ import {
   statusMessage,
   callStrikes,
   putStrikes,
-  MAX_RECONNECT_ATTEMPTS,
-  INITIAL_RECONNECT_DELAY,
-  reconnectAttempts,
-  reconnectTimeout,
-  wsConnectionState,
-  messageQueue,
   stoplossValue,
   targetValue
 } from '@/stores/globalStore'
@@ -87,17 +72,10 @@ import {
 import { toggleKillSwitch } from '@/composables/useKillSwitch'
 
 // Order Management Composables
-import {
-  prepareOrderPayload,
-  placeOrder,
-  placeOrderForPosition,
-  closeAllPositions,
-  cancelPendingOrders
-} from '@/composables/useOrderManagement'
+import { placeOrder } from '@/composables/useOrderManagement'
 
 // Broker Selection Composables
 import {
-  brokerStatus,
   updateSelectedBroker,
   setFlattradeCredentials,
   setShoonyaCredentials
@@ -116,14 +94,12 @@ import {
 
 // Portfolio Management Composables
 import {
-  updateOrdersAndPositions,
-  fetchFlattradeOrdersTradesBook,
-  fetchShoonyaOrdersTradesBook,
+  updatePositionSecurityIds,
+  fetchFundLimit,
   fetchFlattradePositions,
   fetchShoonyaPositions,
-  updatePositionSecurityIds,
-  updateFundLimits,
-  fetchFundLimit
+  fetchFlattradeOrdersTradesBook,
+  fetchShoonyaOrdersTradesBook
 } from '@/composables/usePositionManagement'
 
 // Risk Management Composables
@@ -132,7 +108,6 @@ import { checkStoplossesAndTargets } from '@/composables/useRiskManagement'
 // Market Data Composables
 import {
   fetchTradingInstruments,
-  getMasterSymbolPrice,
   updateSymbolData,
   updateStrikesForExpiry,
   synchronizeCallStrikes,
@@ -151,14 +126,10 @@ import { setDefaultExpiry } from '@/composables/useAppSettings'
 
 // PnL Calculations Composables
 import {
-  netPnl,
   availableBalance,
-  totalProfit,
   usedAmount,
-  totalNetQty,
   totalBuyValue,
-  totalSellValue,
-  totalCapitalPercentage
+  totalSellValue
 } from '@/composables/usePnlCalculations'
 
 export const isFormDisabled = computed(() => killSwitchActive.value)

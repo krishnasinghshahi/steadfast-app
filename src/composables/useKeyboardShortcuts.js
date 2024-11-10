@@ -4,7 +4,6 @@ import {
   closeAllPositions,
   cancelPendingOrders
 } from '@/composables/useOrderManagement'
-import { getTransactionType } from '@/composables/useTradeConfiguration'
 
 export const handleHotKeys = (event) => {
   if (!enableHotKeys.value) return

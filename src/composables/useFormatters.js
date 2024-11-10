@@ -1,4 +1,3 @@
-import { ref } from 'vue'
 import { dataFetched, selectedBroker } from '@/stores/globalStore'
 
 // Broker Formatter

@@ -10,10 +10,7 @@ import {
   shoonyaOneTimePassword,
   SHOONYA_API_TOKEN,
   shoonyaBrokerUserId,
-  FLATTRADE_API_TOKEN,
-  FLATTRADE_CLIENT_ID,
-  FLATTRADE_API_SECRET,
-  FLATTRADE_API_KEY
+  FLATTRADE_API_TOKEN
 } from '@/stores/globalStore'
 
 import { validateToken } from '@/composables/useBrokerTokenValidator'

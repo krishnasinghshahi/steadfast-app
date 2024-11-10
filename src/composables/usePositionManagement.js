@@ -6,26 +6,14 @@ import {
   flatTradePositionBook,
   shoonyaPositionBook,
   positionSecurityIds,
-  socket,
-  defaultCallSecurityId,
-  defaultPutSecurityId,
-  currentSubscriptions,
   toastMessage,
   showToast,
   flatOrderBook,
   flatTradeBook,
   shoonyaOrderBook,
   shoonyaTradeBook,
-  fundLimits,
-  callStrikes,
-  putStrikes
+  fundLimits
 } from '@/stores/globalStore'
-
-// Trade Configuration Composables
-import { getExchangeSegment } from '@/composables/useTradeConfiguration'
-
-// Real Time LTP Data Composables
-import { subscribeToLTP } from '@/composables/useMarketData'
 
 // WebSocket Composables
 import { subscribeToOptions, subscribeToPositionLTPs } from '@/composables/useWebSocket'

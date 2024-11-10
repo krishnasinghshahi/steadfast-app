@@ -1,25 +1,16 @@
-import { ref, computed } from 'vue'
-import { validateToken } from '@/composables/useBrokerTokenValidator'
+import { computed } from 'vue'
 import { updateSelectedBrokerOnServer } from '../api/broker'
 import axios from 'axios'
-import { parseBrokerKey, getAllBrokersFromLocalStorage } from '@/composables/useFormatters'
+import { getAllBrokersFromLocalStorage } from '@/composables/useFormatters'
 
 // Global State
 import {
   selectedBroker,
   selectedBrokerName,
-  selectedBrokerToDelete,
   tokenStatus,
   BASE_URL,
   toastMessage,
-  showToast,
-  FLATTRADE_CLIENT_ID,
-  FLATTRADE_API_KEY,
-  FLATTRADE_API_TOKEN,
-  FLATTRADE_API_SECRET,
-  SHOONYA_CLIENT_ID,
-  SHOONYA_API_KEY,
-  SHOONYA_API_TOKEN
+  showToast
 } from '@/stores/globalStore'
 
 export const availableBrokers = computed(() => {
