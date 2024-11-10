@@ -26,8 +26,11 @@
             <label for="Segment" class="form-label mb-0 small">Segment</label>
             <select id="Segment" class="form-select form-select-sm" aria-label="Segment"
               :class="{ 'disabled-form': isFormDisabled }" disabled>
-              <option value="Options" selected>Options</option>
+              <option value="Options" selected>Index Options</option>
               <option value="Futures">Futures</option>
+              <option value="Stock Options">Stock Options</option>
+              <option value="Stock Futures">Stock Futures</option>
+              <option value="Stocks">Stocks</option>
             </select>
           </div>
 
