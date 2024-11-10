@@ -496,7 +496,7 @@ export const setActiveFetchFunctionAndFetch = async () => {
       // Handle the error appropriately (e.g., show an error message to the user)
     }
   } else {
-    console.error('Invalid broker or tab type')
+    console.warn('No selected broker for active tab')
   }
 }
 
